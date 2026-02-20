@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import {
+  createGroupFromPair,
+  createJoinInvite,
+  createMergeRequest,
+  expireStaleItems,
+} from "@/lib/group";
 
 const REQUEST_EXPIRY_HOURS = 48;
 
@@ -10,14 +16,14 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  await expireOldRequests();
+  await expireStaleItems();
 
   const [sent, received] = await Promise.all([
     db.roommateRequest.findMany({
       where: { fromStudentId: session.user.id },
       include: {
         toStudent: {
-          select: { id: true, name: true, photo: true, email: true, preferredRoomSize: true },
+          select: { id: true, name: true, photo: true, email: true, preferredRoomSizes: true },
         },
       },
       orderBy: { createdAt: "desc" },
@@ -26,7 +32,7 @@ export async function GET() {
       where: { toStudentId: session.user.id },
       include: {
         fromStudent: {
-          select: { id: true, name: true, photo: true, email: true, preferredRoomSize: true },
+          select: { id: true, name: true, photo: true, email: true, preferredRoomSizes: true },
         },
       },
       orderBy: { createdAt: "desc" },
@@ -44,32 +50,17 @@ export async function POST(req: NextRequest) {
 
   const { toStudentId } = await req.json();
   if (!toStudentId) {
-    return NextResponse.json(
-      { error: "Target student ID required" },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: "Target student ID required" }, { status: 400 });
   }
-
   if (toStudentId === session.user.id) {
-    return NextResponse.json(
-      { error: "Cannot send request to yourself" },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: "Cannot send request to yourself" }, { status: 400 });
   }
 
   const existing = await db.roommateRequest.findFirst({
-    where: {
-      fromStudentId: session.user.id,
-      toStudentId,
-      status: "pending",
-    },
+    where: { fromStudentId: session.user.id, toStudentId, status: "pending" },
   });
-
   if (existing) {
-    return NextResponse.json(
-      { error: "Request already sent" },
-      { status: 409 }
-    );
+    return NextResponse.json({ error: "Request already sent" }, { status: 409 });
   }
 
   const request = await db.roommateRequest.create({
@@ -91,28 +82,15 @@ export async function PUT(req: NextRequest) {
 
   const { requestId, action } = await req.json();
   if (!requestId || !["accept", "decline"].includes(action)) {
-    return NextResponse.json(
-      { error: "Request ID and action (accept/decline) required" },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: "Request ID and action (accept/decline) required" }, { status: 400 });
   }
 
-  const request = await db.roommateRequest.findUnique({
-    where: { id: requestId },
-  });
-
+  const request = await db.roommateRequest.findUnique({ where: { id: requestId } });
   if (!request || request.toStudentId !== session.user.id) {
-    return NextResponse.json(
-      { error: "Request not found" },
-      { status: 404 }
-    );
+    return NextResponse.json({ error: "Request not found" }, { status: 404 });
   }
-
   if (request.status !== "pending") {
-    return NextResponse.json(
-      { error: "Request is no longer pending" },
-      { status: 409 }
-    );
+    return NextResponse.json({ error: "Request is no longer pending" }, { status: 409 });
   }
 
   const updated = await db.roommateRequest.update({
@@ -121,79 +99,51 @@ export async function PUT(req: NextRequest) {
   });
 
   if (action === "accept") {
-    const mutual = await db.roommateRequest.findFirst({
-      where: {
-        fromStudentId: request.toStudentId,
-        toStudentId: request.fromStudentId,
-        status: "accepted",
-      },
-    });
-
-    if (mutual) {
-      await tryFormRoom(request.fromStudentId, request.toStudentId);
-    }
+    await handleAccept(request.fromStudentId, request.toStudentId);
   }
 
   return NextResponse.json(updated);
 }
 
-async function tryFormRoom(studentAId: string, studentBId: string) {
-  const [studentA, studentB] = await Promise.all([
-    db.student.findUnique({
-      where: { id: studentAId },
-      include: { roomMemberships: true },
+// ---------------------------------------------------------------------------
+// Three-way branching on accept
+// ---------------------------------------------------------------------------
+async function handleAccept(fromStudentId: string, toStudentId: string) {
+  // Check for mutual acceptance (both directions accepted)
+  const mutual = await db.roommateRequest.findFirst({
+    where: { fromStudentId: toStudentId, toStudentId: fromStudentId, status: "accepted" },
+  });
+  if (!mutual) return; // not mutual yet — wait for the other side
+
+  const [fromMembership, toMembership, fromStudent] = await Promise.all([
+    db.groupMember.findUnique({
+      where: { studentId: fromStudentId },
+      include: { group: { include: { members: true } } },
     }),
-    db.student.findUnique({
-      where: { id: studentBId },
-      include: { roomMemberships: true },
+    db.groupMember.findUnique({
+      where: { studentId: toStudentId },
+      include: { group: { include: { members: true } } },
     }),
+    db.student.findUnique({ where: { id: fromStudentId }, select: { organizationId: true } }),
   ]);
 
-  if (!studentA || !studentB) return;
-  if (studentA.roomMemberships.length > 0 || studentB.roomMemberships.length > 0) return;
+  if (!fromStudent) return;
+  const orgId = fromStudent.organizationId;
+  const fromGroup = fromMembership?.group;
+  const toGroup = toMembership?.group;
 
-  const roomSize = studentA.preferredRoomSize || studentB.preferredRoomSize;
-  if (!roomSize) return;
-
-  const config = await db.roomConfig.findFirst({
-    where: {
-      organizationId: studentA.organizationId,
-      roomSize,
-    },
-  });
-
-  if (!config) return;
-
-  const formedRooms = await db.room.count({
-    where: { roomConfigId: config.id },
-  });
-
-  if (formedRooms >= config.totalRooms) return;
-
-  const room = await db.room.create({
-    data: {
-      organizationId: studentA.organizationId,
-      roomConfigId: config.id,
-      roomSize: config.roomSize,
-      leaderId: studentAId,
-      status: config.roomSize <= 2 ? "full" : "forming",
-    },
-  });
-
-  await db.roomMember.createMany({
-    data: [
-      { roomId: room.id, studentId: studentAId },
-      { roomId: room.id, studentId: studentBId },
-    ],
-  });
-}
-
-async function expireOldRequests() {
-  await db.roommateRequest.updateMany({
-    where: {
-      status: "pending",
-      expiresAt: { lt: new Date() },
-    },
-    data: { status: "expired" },
-  });
+  if (!fromGroup && !toGroup) {
+    // SOLO + SOLO → create new group
+    await createGroupFromPair(fromStudentId, toStudentId, orgId);
+  } else if (fromGroup && !toGroup) {
+    // toStudent is solo, fromStudent is in a group → invite toStudent into fromStudent's group
+    await createJoinInvite(fromGroup.id, toStudentId, fromStudentId);
+  } else if (!fromGroup && toGroup) {
+    // fromStudent is solo, toStudent is in a group → invite fromStudent into toStudent's group
+    await createJoinInvite(toGroup.id, fromStudentId, toStudentId);
+  } else if (fromGroup && toGroup && fromGroup.id !== toGroup.id) {
+    // Both in different groups → merge request
+    await createMergeRequest(fromGroup.id, toGroup.id, fromStudentId);
+  }
+  // If same group — do nothing
 }

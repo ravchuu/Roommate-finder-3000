@@ -1,6 +1,6 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import { StudentNav } from "@/components/layout/student-nav";
+import { StudentSidebar } from "@/components/layout/student-sidebar";
 import { DeadlineBanner } from "@/components/layout/deadline-banner";
 
 export default async function StudentLayout({
@@ -12,10 +12,12 @@ export default async function StudentLayout({
   if (!session || session.user.role !== "student") redirect("/login");
 
   return (
-    <div className="min-h-screen bg-background">
-      <StudentNav />
-      <DeadlineBanner />
-      <main className="max-w-6xl mx-auto px-6 py-8">{children}</main>
+    <div className="h-screen flex overflow-hidden bg-background">
+      <StudentSidebar />
+      <main className="flex-1 overflow-y-auto bg-white lg:rounded-l-3xl">
+        <DeadlineBanner />
+        <div className="p-6 lg:p-8 pt-20 lg:pt-8">{children}</div>
+      </main>
     </div>
   );
 }

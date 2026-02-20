@@ -147,9 +147,14 @@ const BIOS = [
 async function main() {
   console.log("Seeding database...");
 
+  await prisma.message.deleteMany();
+  await prisma.conversationMember.deleteMany();
+  await prisma.conversation.deleteMany();
   await prisma.endorsement.deleteMany();
-  await prisma.roomMember.deleteMany();
-  await prisma.room.deleteMany();
+  await prisma.invite.deleteMany();
+  await prisma.mergeRequest.deleteMany();
+  await prisma.groupMember.deleteMany();
+  await prisma.group.deleteMany();
   await prisma.roommateRequest.deleteMany();
   await prisma.matchWeight.deleteMany();
   await prisma.surveyResponse.deleteMany();
@@ -163,7 +168,7 @@ async function main() {
       slug: "westfield",
       adminEmail: "admin@westfield.edu",
       adminPasswordHash: hashPassword("admin123"),
-      deadline: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
+      deadline: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
     },
   });
 
@@ -171,26 +176,48 @@ async function main() {
 
   const roomConfigs = await Promise.all([
     prisma.roomConfig.create({
-      data: { organizationId: org.id, roomSize: 2, totalRooms: 5 },
+      data: {
+        organizationId: org.id,
+        roomSize: 2,
+        totalRooms: 5,
+        reservationThresholdPercent: 0.5,
+        gracePeriodHours: 24,
+      },
     }),
     prisma.roomConfig.create({
-      data: { organizationId: org.id, roomSize: 4, totalRooms: 3 },
+      data: {
+        organizationId: org.id,
+        roomSize: 4,
+        totalRooms: 3,
+        reservationThresholdPercent: 0.5,
+        gracePeriodHours: 24,
+      },
     }),
     prisma.roomConfig.create({
-      data: { organizationId: org.id, roomSize: 6, totalRooms: 1 },
+      data: {
+        organizationId: org.id,
+        roomSize: 6,
+        totalRooms: 1,
+        reservationThresholdPercent: 0.5,
+        gracePeriodHours: 24,
+      },
     }),
   ]);
 
   console.log(`Created ${roomConfigs.length} room configurations`);
 
-  const roomSizes = [2, 4, 6];
+  const allSizes = [2, 4, 6];
+  const sizePresets = [
+    [2], [4], [6], [2, 4], [4, 6], [2, 6], [2, 4, 6], [2], [4], [2, 4], [4, 6], [2, 4, 6],
+  ];
   const students = [];
 
   for (let i = 0; i < STUDENTS_DATA.length; i++) {
     const data = STUDENTS_DATA[i];
-    const isClaimed = i < 12; // first 12 students have claimed their profiles
+    const isClaimed = i < 12;
     const surveyPreset = SURVEY_PRESETS[i % SURVEY_PRESETS.length];
 
+    const isFirstUnclaimed = i === 12;
     const student = await prisma.student.create({
       data: {
         organizationId: org.id,
@@ -200,8 +227,10 @@ async function main() {
         email: data.email,
         claimed: isClaimed,
         passwordHash: isClaimed ? hashPassword("student123") : null,
-        preferredRoomSize: isClaimed ? roomSizes[i % roomSizes.length] : null,
+        preferredRoomSizes: isClaimed ? JSON.stringify(sizePresets[i % sizePresets.length]) : null,
         bio: isClaimed ? BIOS[i] : null,
+        onboardingComplete: isClaimed,
+        ...(isFirstUnclaimed ? { claimToken: "test-claim-token" } : {}),
       },
     });
 
@@ -222,7 +251,11 @@ async function main() {
   console.log("\n--- Demo Credentials ---");
   console.log("Admin: admin@westfield.edu / admin123");
   console.log("Student (any claimed): student123");
-  console.log(`Claim tokens for unclaimed students can be found in the database.`);
+  console.log("");
+  console.log("--- First-time Claim Test ---");
+  console.log("Org code: westfield");
+  console.log(`Email: ${STUDENTS_DATA[12].email}`);
+  console.log("Claim token: test-claim-token");
   console.log("------------------------\n");
 
   console.log("Seeding complete!");

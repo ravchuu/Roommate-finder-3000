@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { autoAssignStudents, lockAllRooms } from "@/lib/auto-assign";
+import { autoAssignStudents, lockAllGroups } from "@/lib/auto-assign";
 
 export async function POST() {
   const session = await auth();
@@ -11,10 +11,10 @@ export async function POST() {
   const orgId = session.user.organizationId;
 
   const { assigned } = await autoAssignStudents(orgId);
-  await lockAllRooms(orgId);
+  await lockAllGroups(orgId);
 
   return NextResponse.json({
     success: true,
-    message: `Auto-assigned ${assigned} students and locked all rooms.`,
+    message: `Auto-assigned ${assigned} students and locked all groups.`,
   });
 }

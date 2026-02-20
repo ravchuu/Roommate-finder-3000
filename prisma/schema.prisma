@@ -19,47 +19,58 @@ model Organization {
 
   students    Student[]
   roomConfigs RoomConfig[]
-  rooms       Room[]
+  groups      Group[]
 }
 
 model Student {
-  id                String   @id @default(cuid())
-  organizationId    String
-  name              String
-  age               Int?
-  gender            String?
-  email             String
-  claimed           Boolean  @default(false)
-  passwordHash      String?
-  claimToken        String   @unique @default(cuid())
-  preferredRoomSize Int?
-  photo             String?
-  bio               String?
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  id                   String   @id @default(cuid())
+  organizationId       String
+  name                 String
+  age                  Int?
+  gender               String?
+  email                String
+  claimed              Boolean  @default(false)
+  passwordHash         String?
+  claimToken           String   @unique @default(cuid())
+  preferredRoomSizes   String?   // JSON array, e.g. "[2,4]"
+  photo                String?
+  bio                  String?
+  nickname             String?
+  phone                String?
+  personalEmail        String?
+  preferPersonalEmail  Boolean  @default(false)
+  onboardingComplete   Boolean  @default(false)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
 
-  organization    Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  surveyResponse  SurveyResponse?
-  matchWeights    MatchWeight[]
-  sentRequests    RoommateRequest[] @relation("SentRequests")
-  receivedRequests RoommateRequest[] @relation("ReceivedRequests")
-  roomMemberships RoomMember[]
-  ledRooms        Room[]            @relation("RoomLeader")
-  endorsementsGiven Endorsement[]   @relation("EndorsedBy")
-  endorsementsReceived Endorsement[] @relation("EndorsedStudent")
+  organization         Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  surveyResponse       SurveyResponse?
+  matchWeights         MatchWeight[]
+  sentRequests         RoommateRequest[] @relation("SentRequests")
+  receivedRequests     RoommateRequest[] @relation("ReceivedRequests")
+  groupMemberships     GroupMember[]
+  ledGroups            Group[]           @relation("GroupLeader")
+  endorsementsGiven    Endorsement[]     @relation("EndorsedBy")
+  endorsementsReceived Endorsement[]     @relation("EndorsedStudent")
+  invitesReceived      Invite[]          @relation("InviteStudent")
+  invitesSent          Invite[]          @relation("InviteSender")
+  messagesSent         Message[]
+  conversationMemberships ConversationMember[]
 
   @@unique([email, organizationId])
   @@index([organizationId])
 }
 
 model RoomConfig {
-  id             String @id @default(cuid())
-  organizationId String
-  roomSize       Int
-  totalRooms     Int
+  id                          String @id @default(cuid())
+  organizationId              String
+  roomSize                    Int
+  totalRooms                  Int
+  reservationThresholdPercent Float  @default(0.5)
+  gracePeriodHours            Int    @default(24)
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  rooms        Room[]
+  groups       Group[]
 
   @@unique([organizationId, roomSize])
   @@index([organizationId])
@@ -68,7 +79,7 @@ model RoomConfig {
 model SurveyResponse {
   id        String @id @default(cuid())
   studentId String @unique
-  answers   String // JSON string since SQLite doesn't support native JSON
+  answers   String
 
   student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
 }
@@ -103,52 +114,141 @@ model RoommateRequest {
   @@index([status])
 }
 
-model Room {
-  id             String @id @default(cuid())
-  organizationId String
-  roomConfigId   String
-  roomSize       Int
-  leaderId       String?
-  status         String @default("forming") // forming, full, locked
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+// --- Group-based rooming model ---
 
-  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  roomConfig   RoomConfig    @relation(fields: [roomConfigId], references: [id])
-  leader       Student?      @relation("RoomLeader", fields: [leaderId], references: [id])
-  members      RoomMember[]
-  endorsements Endorsement[]
+model Group {
+  id                  String    @id @default(cuid())
+  organizationId      String
+  targetRoomSize      Int?      // null = flexible (members haven't agreed on size)
+  leaderId            String?
+  status              String    @default("unreserved") // unreserved, reserved, waitlisted, locked
+  reservedRoomConfigId String?
+  reservedAt          DateTime?
+  thresholdDroppedAt  DateTime? // tracks when group fell below threshold (grace period)
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  leader         Student?      @relation("GroupLeader", fields: [leaderId], references: [id])
+  reservedConfig RoomConfig?   @relation(fields: [reservedRoomConfigId], references: [id])
+  members        GroupMember[]
+  endorsements   Endorsement[]
+  invites        Invite[]
+  mergeRequestsFrom MergeRequest[] @relation("MergeFrom")
+  mergeRequestsTo   MergeRequest[] @relation("MergeTo")
 
   @@index([organizationId])
-  @@index([roomConfigId])
+  @@index([status])
+  @@index([reservedRoomConfigId])
+}
+
+model GroupMember {
+  id        String   @id @default(cuid())
+  groupId   String
+  studentId String   @unique // one group per student
+  joinedAt  DateTime @default(now())
+
+  group   Group   @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, studentId])
+  @@index([groupId])
+}
+
+model Invite {
+  id                 String   @id @default(cuid())
+  groupId            String
+  studentId          String   // the person being invited
+  invitedByStudentId String   // who triggered the invite
+  status             String   @default("pending") // pending, accepted, declined, expired
+  expiresAt          DateTime
+  createdAt          DateTime @default(now())
+
+  group     Group   @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  student   Student @relation("InviteStudent", fields: [studentId], references: [id], onDelete: Cascade)
+  invitedBy Student @relation("InviteSender", fields: [invitedByStudentId], references: [id], onDelete: Cascade)
+
+  @@index([groupId])
+  @@index([studentId])
   @@index([status])
 }
 
-model RoomMember {
-  id        String   @id @default(cuid())
-  roomId    String
-  studentId String   @unique
-  joinedAt  DateTime @default(now())
+model MergeRequest {
+  id                  String   @id @default(cuid())
+  fromGroupId         String
+  toGroupId           String
+  initiatedByStudentId String
+  status              String   @default("pending") // pending, accepted, declined, expired
+  fromLeaderApproved  Boolean  @default(false)
+  toLeaderApproved    Boolean  @default(false)
+  expiresAt           DateTime
+  createdAt           DateTime @default(now())
 
-  room    Room    @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  fromGroup   Group   @relation("MergeFrom", fields: [fromGroupId], references: [id], onDelete: Cascade)
+  toGroup     Group   @relation("MergeTo", fields: [toGroupId], references: [id], onDelete: Cascade)
 
-  @@unique([roomId, studentId])
-  @@index([roomId])
+  @@index([fromGroupId])
+  @@index([toGroupId])
+  @@index([status])
 }
 
 model Endorsement {
-  id                 String @id @default(cuid())
-  roomId             String
-  endorsedStudentId  String
+  id                  String   @id @default(cuid())
+  groupId             String
+  endorsedStudentId   String
   endorsedByStudentId String
-  createdAt          DateTime @default(now())
+  createdAt           DateTime @default(now())
 
-  room            Room    @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  group           Group   @relation(fields: [groupId], references: [id], onDelete: Cascade)
   endorsedStudent Student @relation("EndorsedStudent", fields: [endorsedStudentId], references: [id], onDelete: Cascade)
   endorsedBy      Student @relation("EndorsedBy", fields: [endorsedByStudentId], references: [id], onDelete: Cascade)
 
-  @@unique([roomId, endorsedStudentId, endorsedByStudentId])
-  @@index([roomId])
+  @@unique([groupId, endorsedStudentId, endorsedByStudentId])
+  @@index([groupId])
   @@index([endorsedStudentId])
+}
+
+// --- Messaging ---
+
+model Conversation {
+  id        String   @id @default(cuid())
+  type      String   // dm, group, request
+  groupId   String?
+  requestId String?
+  createdAt DateTime @default(now())
+
+  members  ConversationMember[]
+  messages Message[]
+
+  @@index([type])
+  @@index([groupId])
+  @@index([requestId])
+}
+
+model ConversationMember {
+  id             String   @id @default(cuid())
+  conversationId String
+  studentId      String
+  joinedAt       DateTime @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  student      Student      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, studentId])
+  @@index([conversationId])
+  @@index([studentId])
+}
+
+model Message {
+  id             String   @id @default(cuid())
+  conversationId String
+  senderId       String
+  content        String
+  createdAt      DateTime @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender       Student      @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+  @@index([senderId])
 }

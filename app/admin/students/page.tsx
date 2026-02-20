@@ -22,7 +22,7 @@ interface Student {
   gender: string | null;
   claimed: boolean;
   claimToken: string;
-  preferredRoomSize: number | null;
+  preferredRoomSizes: string | null;
   createdAt: string;
 }
 

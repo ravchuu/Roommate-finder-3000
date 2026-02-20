@@ -7,7 +7,7 @@ export async function autoAssignStudents(organizationId: string) {
     where: {
       organizationId,
       claimed: true,
-      roomMemberships: { none: {} },
+      groupMemberships: { none: {} },
     },
     include: { surveyResponse: true },
   });
@@ -22,13 +22,15 @@ export async function autoAssignStudents(organizationId: string) {
   let assignedCount = 0;
   const assignedIds = new Set<string>();
 
-  const formingRooms = await db.room.findMany({
-    where: { organizationId, status: "forming" },
+  // Phase 1: fill existing unreserved/reserved/waitlisted groups that aren't full
+  const openGroups = await db.group.findMany({
+    where: { organizationId, status: { not: "locked" } },
     include: { members: true },
   });
 
-  for (const room of formingRooms) {
-    const spotsLeft = room.roomSize - room.members.length;
+  for (const group of openGroups) {
+    const capacity = group.targetRoomSize || configs.find((c) => c.roomSize >= group.members.length)?.roomSize || 0;
+    const spotsLeft = capacity - group.members.length;
     if (spotsLeft <= 0) continue;
 
     const remaining = unassigned.filter((s) => !assignedIds.has(s.id));
@@ -36,21 +38,15 @@ export async function autoAssignStudents(organizationId: string) {
 
     const toAdd = remaining.slice(0, spotsLeft);
     for (const student of toAdd) {
-      await db.roomMember.create({
-        data: { roomId: room.id, studentId: student.id },
+      await db.groupMember.create({
+        data: { groupId: group.id, studentId: student.id },
       });
       assignedIds.add(student.id);
       assignedCount++;
     }
-
-    if (room.members.length + toAdd.length >= room.roomSize) {
-      await db.room.update({
-        where: { id: room.id },
-        data: { status: "full" },
-      });
-    }
   }
 
+  // Phase 2: create new groups for remaining unassigned students
   const stillUnassigned = unassigned.filter((s) => !assignedIds.has(s.id));
 
   if (stillUnassigned.length > 0) {
@@ -63,32 +59,27 @@ export async function autoAssignStudents(organizationId: string) {
     for (const student of withSurvey) {
       if (used.has(student.id)) continue;
 
-      const group = [student.id];
+      const cluster = [student.id];
       used.add(student.id);
 
-      const myAnswers: SurveyAnswers = JSON.parse(
-        student.surveyResponse!.answers
-      );
+      const myAnswers: SurveyAnswers = JSON.parse(student.surveyResponse!.answers);
 
       const candidates = withSurvey
         .filter((s) => !used.has(s.id))
         .map((s) => ({
           id: s.id,
-          score: computeCompatibility(
-            myAnswers,
-            JSON.parse(s.surveyResponse!.answers)
-          ),
+          score: computeCompatibility(myAnswers, JSON.parse(s.surveyResponse!.answers)),
         }))
         .sort((a, b) => b.score - a.score);
 
       for (const candidate of candidates) {
         if (used.has(candidate.id)) continue;
-        group.push(candidate.id);
+        cluster.push(candidate.id);
         used.add(candidate.id);
-        if (group.length >= 4) break;
+        if (cluster.length >= 4) break;
       }
 
-      grouped.push(group);
+      grouped.push(cluster);
     }
 
     for (const student of withoutSurvey) {
@@ -97,40 +88,61 @@ export async function autoAssignStudents(organizationId: string) {
       used.add(student.id);
     }
 
-    for (const group of grouped) {
-      const config = configs.find((c) => c.roomSize >= group.length);
+    for (const cluster of grouped) {
+      const config = configs.find((c) => c.roomSize >= cluster.length);
       if (!config) continue;
 
-      const existingRooms = await db.room.count({
-        where: { roomConfigId: config.id },
+      // Check inventory: count reserved+locked groups for this config
+      const reservedCount = await db.group.count({
+        where: {
+          organizationId,
+          reservedRoomConfigId: config.id,
+          status: { in: ["reserved", "locked"] },
+        },
       });
-      if (existingRooms >= config.totalRooms) continue;
+      if (reservedCount >= config.totalRooms) continue;
 
-      const room = await db.room.create({
+      await db.group.create({
         data: {
           organizationId,
-          roomConfigId: config.id,
-          roomSize: config.roomSize,
-          leaderId: group[0],
-          status: group.length >= config.roomSize ? "full" : "forming",
+          targetRoomSize: config.roomSize,
+          leaderId: cluster[0],
+          status: "unreserved",
+          members: {
+            create: cluster.map((studentId) => ({ studentId })),
+          },
         },
       });
 
-      for (const studentId of group) {
-        await db.roomMember.create({
-          data: { roomId: room.id, studentId },
-        });
-        assignedCount++;
-      }
+      assignedCount += cluster.length;
     }
   }
 
   return { assigned: assignedCount };
 }
 
-export async function lockAllRooms(organizationId: string) {
-  await db.room.updateMany({
-    where: { organizationId },
-    data: { status: "locked" },
+export async function lockAllGroups(organizationId: string) {
+  // Reserve any unreserved groups that qualify before locking
+  const unreserved = await db.group.findMany({
+    where: { organizationId, status: { not: "locked" } },
+    include: { members: true },
   });
+
+  const configs = await db.roomConfig.findMany({ where: { organizationId } });
+
+  for (const group of unreserved) {
+    if (group.members.length === 0) continue;
+    const config =
+      configs.find((c) => c.roomSize === group.targetRoomSize) ||
+      configs.find((c) => c.roomSize >= group.members.length);
+
+    await db.group.update({
+      where: { id: group.id },
+      data: {
+        status: "locked",
+        reservedRoomConfigId: config?.id ?? group.reservedRoomConfigId,
+        targetRoomSize: group.targetRoomSize ?? config?.roomSize ?? null,
+      },
+    });
+  }
 }

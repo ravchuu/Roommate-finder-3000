@@ -68,25 +68,21 @@ export default function LandingPage() {
               icon={<Shield className="h-6 w-6" />}
               title="Organization-Gated"
               description="Profiles are pre-created by your organization. Claim yours to get started — no fake accounts."
-              color="bg-pastel-teal/40 border-pastel-teal"
             />
             <FeatureCard
               icon={<Brain className="h-6 w-6" />}
               title="Smart Matching"
               description="Our compatibility algorithm considers sleep schedules, cleanliness, noise tolerance, and more."
-              color="bg-pastel-lavender/40 border-pastel-lavender"
             />
             <FeatureCard
               icon={<Users className="h-6 w-6" />}
               title="Mutual Selection"
               description="Send and receive roommate requests. Rooms form automatically when matches are mutual."
-              color="bg-pastel-peach/40 border-pastel-peach"
             />
             <FeatureCard
               icon={<Clock className="h-6 w-6" />}
               title="Deadline-Aware"
               description="The system respects real room inventory and deadlines, auto-assigning anyone left unmatched."
-              color="bg-pastel-sky/40 border-pastel-sky"
             />
           </div>
         </section>
@@ -99,19 +95,17 @@ export default function LandingPage() {
                 number="1"
                 title="Claim & Set Up"
                 description="Your org creates your profile. Claim it, pick a room size, and complete the lifestyle survey."
-                color="bg-pastel-green"
               />
               <Step
                 number="2"
                 title="Discover Matches"
                 description="Browse ranked compatible roommates, read bios, and see why you match."
-                color="bg-pastel-peach"
+                accent
               />
               <Step
                 number="3"
                 title="Form Your Room"
                 description="Send requests, get endorsed by room members, and lock in your group before the deadline."
-                color="bg-pastel-sky"
               />
             </div>
           </div>
@@ -131,18 +125,14 @@ function FeatureCard({
   icon,
   title,
   description,
-  color,
 }: {
   icon: React.ReactNode;
   title: string;
   description: string;
-  color: string;
 }) {
   return (
-    <div
-      className={`rounded-2xl border p-6 hover:shadow-md transition-all ${color}`}
-    >
-      <div className="h-11 w-11 rounded-xl bg-white/60 text-primary flex items-center justify-center mb-4">
+    <div className="rounded-2xl border border-pastel-teal/60 bg-pastel-teal/25 p-6 hover:bg-pastel-teal/40 hover:shadow-md transition-all">
+      <div className="h-11 w-11 rounded-xl bg-pastel-teal/60 text-primary flex items-center justify-center mb-4">
         {icon}
       </div>
       <h3 className="font-semibold mb-2">{title}</h3>
@@ -155,17 +145,17 @@ function Step({
   number,
   title,
   description,
-  color,
+  accent,
 }: {
   number: string;
   title: string;
   description: string;
-  color: string;
+  accent?: boolean;
 }) {
   return (
     <div>
       <div
-        className={`h-11 w-11 rounded-2xl ${color} text-primary flex items-center justify-center font-bold mx-auto mb-4 text-lg`}
+        className={`h-11 w-11 rounded-2xl ${accent ? "bg-pastel-peach" : "bg-pastel-teal"} text-primary flex items-center justify-center font-bold mx-auto mb-4 text-lg`}
       >
         {number}
       </div>

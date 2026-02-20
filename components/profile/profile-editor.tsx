@@ -30,7 +30,7 @@ interface ProfileData {
   gender: string | null;
   bio: string | null;
   photo: string | null;
-  preferredRoomSize: number | null;
+  preferredRoomSizes: number[];
   surveyAnswers: Record<string, string | number> | null;
   matchWeights: Record<string, number>;
 }

@@ -19,7 +19,7 @@ export async function GET() {
       gender: true,
       claimed: true,
       claimToken: true,
-      preferredRoomSize: true,
+      preferredRoomSizes: true,
       createdAt: true,
     },
   });

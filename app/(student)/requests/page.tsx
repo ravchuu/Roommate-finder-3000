@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { motion } from "framer-motion";
 import {
   Loader2,
   Mail,
@@ -21,7 +22,7 @@ interface StudentInfo {
   name: string;
   photo: string | null;
   email: string;
-  preferredRoomSize: number | null;
+  preferredRoomSizes: number[];
 }
 
 interface Request {
@@ -94,10 +95,15 @@ export default function RequestsPage() {
 
   return (
     <div>
-      <div className="flex items-center gap-2 mb-8">
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+        className="flex items-center gap-2 mb-8"
+      >
         <Mail className="h-7 w-7 text-primary" />
         <h1 className="text-3xl font-bold">Roommate Requests</h1>
-      </div>
+      </motion.div>
 
       {pendingReceived.length > 0 && (
         <div className="mb-8">
@@ -106,8 +112,14 @@ export default function RequestsPage() {
             Incoming ({pendingReceived.length})
           </h2>
           <div className="space-y-3">
-            {pendingReceived.map((req) => (
-              <Card key={req.id} className="border-primary/20">
+            {pendingReceived.map((req, i) => (
+              <motion.div
+                key={req.id}
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, delay: i * 0.06 }}
+              >
+              <Card className="border-primary/20 hover:shadow-md transition-shadow">
                 <CardContent className="pt-6 flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <Avatar>
@@ -150,12 +162,18 @@ export default function RequestsPage() {
                   </div>
                 </CardContent>
               </Card>
+              </motion.div>
             ))}
           </div>
         </div>
       )}
 
-      <div className="grid md:grid-cols-2 gap-8">
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.15 }}
+        className="grid md:grid-cols-2 gap-8"
+      >
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg">
@@ -262,7 +280,7 @@ export default function RequestsPage() {
             )}
           </CardContent>
         </Card>
-      </div>
+      </motion.div>
     </div>
   );
 }

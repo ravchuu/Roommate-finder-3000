@@ -29,7 +29,7 @@ export async function GET() {
     {} as Record<string, number>
   );
 
-  const currentRoom = await db.roomMember.findUnique({
+  const currentGroup = await db.groupMember.findUnique({
     where: { studentId: session.user.id },
   });
 
@@ -39,7 +39,7 @@ export async function GET() {
       claimed: true,
       id: { not: session.user.id },
     },
-    include: { surveyResponse: true, roomMemberships: true },
+    include: { surveyResponse: true, groupMemberships: true },
   });
 
   const matches = otherStudents
@@ -55,7 +55,7 @@ export async function GET() {
       );
 
       const tags = generateTags(theirAnswers);
-      const inRoom = student.roomMemberships.length > 0;
+      const inGroup = student.groupMemberships.length > 0;
 
       return {
         id: student.id,
@@ -64,11 +64,13 @@ export async function GET() {
         gender: student.gender,
         bio: student.bio,
         photo: student.photo,
-        preferredRoomSize: student.preferredRoomSize,
+        preferredRoomSizes: student.preferredRoomSizes
+          ? JSON.parse(student.preferredRoomSizes)
+          : [],
         compatibility,
         tags,
         hasSurvey: !!student.surveyResponse,
-        inRoom,
+        inGroup,
       };
     })
     .sort((a, b) => b.compatibility - a.compatibility);
@@ -76,6 +78,6 @@ export async function GET() {
   return NextResponse.json({
     matches,
     myAnswers,
-    hasRoom: !!currentRoom,
+    hasGroup: !!currentGroup,
   });
 }

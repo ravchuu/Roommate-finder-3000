@@ -30,7 +30,9 @@ export async function GET() {
     gender: student.gender,
     bio: student.bio,
     photo: student.photo,
-    preferredRoomSize: student.preferredRoomSize,
+    preferredRoomSizes: student.preferredRoomSizes
+      ? JSON.parse(student.preferredRoomSizes)
+      : [],
     surveyAnswers: student.surveyResponse
       ? JSON.parse(student.surveyResponse.answers)
       : null,

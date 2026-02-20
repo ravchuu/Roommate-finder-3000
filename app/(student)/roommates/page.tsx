@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { motion } from "framer-motion";
 import {
   Loader2,
   Search,
@@ -23,11 +24,11 @@ interface MatchProfile {
   gender: string | null;
   bio: string | null;
   photo: string | null;
-  preferredRoomSize: number | null;
+  preferredRoomSizes: number[];
   compatibility: number;
   tags: Tag[];
   hasSurvey: boolean;
-  inRoom: boolean;
+  inGroup: boolean;
 }
 
 const TAG_COLORS: Record<string, string> = {
@@ -106,7 +107,12 @@ export default function RoommatesPage() {
 
   return (
     <div>
-      <div className="mb-8">
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+        className="mb-8"
+      >
         <div className="flex items-center gap-2 mb-2">
           <UserSearch className="h-7 w-7 text-primary" />
           <h1 className="text-3xl font-bold">Potential Roommates</h1>
@@ -114,7 +120,7 @@ export default function RoommatesPage() {
         <p className="text-muted-foreground">
           {matches.length} students ranked by compatibility
         </p>
-      </div>
+      </motion.div>
 
       <div className="flex flex-col sm:flex-row gap-3 mb-6">
         <div className="relative flex-1">
@@ -158,9 +164,14 @@ export default function RoommatesPage() {
 
       <div className="space-y-3">
         {filtered.map((match, index) => (
-          <Card
+          <motion.div
             key={match.id}
-            className="hover:shadow-sm transition-shadow"
+            initial={{ opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, delay: Math.min(index * 0.05, 0.4) }}
+          >
+          <Card
+            className="hover:shadow-md transition-shadow"
           >
             <CardContent className="pt-6">
               <div className="flex items-start gap-4">
@@ -187,14 +198,14 @@ export default function RoommatesPage() {
                         {match.age}
                       </span>
                     )}
-                    {match.preferredRoomSize && (
-                      <Badge variant="outline" className="text-xs">
-                        {match.preferredRoomSize}-person
+                    {match.preferredRoomSizes?.map((size: number) => (
+                      <Badge key={size} variant="outline" className="text-xs">
+                        {size}-person
                       </Badge>
-                    )}
-                    {match.inRoom && (
+                    ))}
+                    {match.inGroup && (
                       <Badge variant="secondary" className="text-xs">
-                        In a room
+                        In a group
                       </Badge>
                     )}
                   </div>
@@ -239,8 +250,7 @@ export default function RoommatesPage() {
                     onClick={() => sendRequest(match.id)}
                     disabled={
                       sendingRequest === match.id ||
-                      sentRequests.has(match.id) ||
-                      match.inRoom
+                      sentRequests.has(match.id)
                     }
                   >
                     {sendingRequest === match.id ? (
@@ -258,6 +268,7 @@ export default function RoommatesPage() {
               </div>
             </CardContent>
           </Card>
+          </motion.div>
         ))}
 
         {filtered.length === 0 && (
