@@ -59,9 +59,15 @@ export default function RoomPage() {
   const [endorseMsg, setEndorseMsg] = useState("");
   const [leaving, setLeaving] = useState(false);
   const [transferring, setTransferring] = useState<string | null>(null);
+  const [mergeableRooms, setMergeableRooms] = useState<
+    { id: string; roomSize: number; memberCount: number; leaderName: string; memberNames: string[] }[]
+  >([]);
+  const [merging, setMerging] = useState<string | null>(null);
+  const [mergeMsg, setMergeMsg] = useState("");
 
   useEffect(() => {
     fetchRoom();
+    fetchMergeableRooms();
   }, []);
 
   async function fetchRoom() {
@@ -105,6 +111,29 @@ export default function RoomPage() {
     setLeaving(true);
     await fetch("/api/rooms/leave", { method: "POST" });
     router.push("/dashboard");
+  }
+
+  async function fetchMergeableRooms() {
+    const res = await fetch("/api/rooms/mergeable");
+    const data = await res.json();
+    setMergeableRooms(data.rooms || []);
+  }
+
+  async function handleMerge(targetRoomId: string) {
+    setMerging(targetRoomId);
+    setMergeMsg("");
+    const res = await fetch("/api/rooms/merge", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ targetRoomId }),
+    });
+    const data = await res.json();
+    setMergeMsg(data.message || data.error);
+    setMerging(null);
+    if (data.success) {
+      fetchRoom();
+      fetchMergeableRooms();
+    }
   }
 
   if (loading) {
@@ -333,6 +362,46 @@ export default function RoomPage() {
           </Card>
         </div>
       </div>
+
+      {mergeableRooms.length > 0 && room.status === "forming" && (
+        <div className="mt-8">
+          <h2 className="text-xl font-semibold mb-4">Merge With Another Room</h2>
+          <p className="text-sm text-muted-foreground mb-4">
+            As room leader, you can propose merging with another forming room.
+          </p>
+          <div className="space-y-3">
+            {mergeableRooms.map((r) => (
+              <Card key={r.id}>
+                <CardContent className="pt-6 flex items-center justify-between">
+                  <div>
+                    <p className="font-medium">
+                      {r.memberCount}-member room (led by {r.leaderName})
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      Members: {r.memberNames.join(", ")}
+                    </p>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleMerge(r.id)}
+                    disabled={merging === r.id}
+                  >
+                    {merging === r.id ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      "Merge"
+                    )}
+                  </Button>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+          {mergeMsg && (
+            <p className="text-sm text-muted-foreground mt-2">{mergeMsg}</p>
+          )}
+        </div>
+      )}
     </div>
   );
 }
