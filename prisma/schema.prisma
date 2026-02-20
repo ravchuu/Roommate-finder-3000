@@ -6,3 +6,149 @@ datasource db {
   provider = "sqlite"
   url      = "file:./dev.db"
 }
+
+model Organization {
+  id                String   @id @default(cuid())
+  name              String
+  slug              String   @unique
+  adminEmail        String   @unique
+  adminPasswordHash String
+  deadline          DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  students    Student[]
+  roomConfigs RoomConfig[]
+  rooms       Room[]
+}
+
+model Student {
+  id                String   @id @default(cuid())
+  organizationId    String
+  name              String
+  age               Int?
+  gender            String?
+  email             String
+  claimed           Boolean  @default(false)
+  passwordHash      String?
+  claimToken        String   @unique @default(cuid())
+  preferredRoomSize Int?
+  photo             String?
+  bio               String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  organization    Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  surveyResponse  SurveyResponse?
+  matchWeights    MatchWeight[]
+  sentRequests    RoommateRequest[] @relation("SentRequests")
+  receivedRequests RoommateRequest[] @relation("ReceivedRequests")
+  roomMemberships RoomMember[]
+  ledRooms        Room[]            @relation("RoomLeader")
+  endorsementsGiven Endorsement[]   @relation("EndorsedBy")
+  endorsementsReceived Endorsement[] @relation("EndorsedStudent")
+
+  @@unique([email, organizationId])
+  @@index([organizationId])
+}
+
+model RoomConfig {
+  id             String @id @default(cuid())
+  organizationId String
+  roomSize       Int
+  totalRooms     Int
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  rooms        Room[]
+
+  @@unique([organizationId, roomSize])
+  @@index([organizationId])
+}
+
+model SurveyResponse {
+  id        String @id @default(cuid())
+  studentId String @unique
+  answers   String // JSON string since SQLite doesn't support native JSON
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+}
+
+model MatchWeight {
+  id        String @id @default(cuid())
+  studentId String
+  traitKey  String
+  weight    Float  @default(1.0)
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, traitKey])
+  @@index([studentId])
+}
+
+model RoommateRequest {
+  id            String   @id @default(cuid())
+  fromStudentId String
+  toStudentId   String
+  status        String   @default("pending") // pending, accepted, declined, expired
+  expiresAt     DateTime
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  fromStudent Student @relation("SentRequests", fields: [fromStudentId], references: [id], onDelete: Cascade)
+  toStudent   Student @relation("ReceivedRequests", fields: [toStudentId], references: [id], onDelete: Cascade)
+
+  @@unique([fromStudentId, toStudentId])
+  @@index([fromStudentId])
+  @@index([toStudentId])
+  @@index([status])
+}
+
+model Room {
+  id             String @id @default(cuid())
+  organizationId String
+  roomConfigId   String
+  roomSize       Int
+  leaderId       String?
+  status         String @default("forming") // forming, full, locked
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  roomConfig   RoomConfig    @relation(fields: [roomConfigId], references: [id])
+  leader       Student?      @relation("RoomLeader", fields: [leaderId], references: [id])
+  members      RoomMember[]
+  endorsements Endorsement[]
+
+  @@index([organizationId])
+  @@index([roomConfigId])
+  @@index([status])
+}
+
+model RoomMember {
+  id        String   @id @default(cuid())
+  roomId    String
+  studentId String   @unique
+  joinedAt  DateTime @default(now())
+
+  room    Room    @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([roomId, studentId])
+  @@index([roomId])
+}
+
+model Endorsement {
+  id                 String @id @default(cuid())
+  roomId             String
+  endorsedStudentId  String
+  endorsedByStudentId String
+  createdAt          DateTime @default(now())
+
+  room            Room    @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  endorsedStudent Student @relation("EndorsedStudent", fields: [endorsedStudentId], references: [id], onDelete: Cascade)
+  endorsedBy      Student @relation("EndorsedBy", fields: [endorsedByStudentId], references: [id], onDelete: Cascade)
+
+  @@unique([roomId, endorsedStudentId, endorsedByStudentId])
+  @@index([roomId])
+  @@index([endorsedStudentId])
+}
