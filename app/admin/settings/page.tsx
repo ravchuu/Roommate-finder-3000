@@ -11,6 +11,7 @@ export default function SettingsPage() {
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [deadline, setDeadline] = useState("");
+  const [housingType, setHousingType] = useState<"coed" | "single_gender">("coed");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -24,6 +25,7 @@ export default function SettingsPage() {
       if (data.deadline) {
         setDeadline(new Date(data.deadline).toISOString().slice(0, 16));
       }
+      setHousingType(data.housingType === "single_gender" ? "single_gender" : "coed");
       setLoading(false);
     }
     load();
@@ -37,7 +39,7 @@ export default function SettingsPage() {
     await fetch("/api/admin/settings", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, deadline: deadline || null }),
+      body: JSON.stringify({ name, deadline: deadline || null, housingType }),
     });
 
     setSaving(false);
@@ -93,6 +95,36 @@ export default function SettingsPage() {
               <p className="text-xs text-muted-foreground">
                 After this deadline, rooms will be locked and unmatched students
                 auto-assigned
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label>Housing type</Label>
+              <div className="flex gap-4">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="housingType"
+                    value="coed"
+                    checked={housingType === "coed"}
+                    onChange={() => setHousingType("coed")}
+                    className="rounded-full border-primary"
+                  />
+                  <span>Co-ed</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="housingType"
+                    value="single_gender"
+                    checked={housingType === "single_gender"}
+                    onChange={() => setHousingType("single_gender")}
+                    className="rounded-full border-primary"
+                  />
+                  <span>Single gender</span>
+                </label>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Single gender: students only see and match with same-gender roommates
               </p>
             </div>
             <div className="flex items-center gap-3">

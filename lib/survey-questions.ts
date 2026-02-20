@@ -97,3 +97,17 @@ export const SURVEY_QUESTIONS: SurveyQuestion[] = [
 ];
 
 export type SurveyAnswers = Record<string, string | number>;
+
+/** Get human-readable label for a survey answer (for display on dashboard, etc.) */
+export function getSurveyAnswerLabel(
+  question: SurveyQuestion,
+  value: string | number | undefined
+): string | null {
+  if (value === undefined || value === null || value === "") return null;
+  if (question.type === "select" && question.options) {
+    const opt = question.options.find((o) => o.value === String(value));
+    return opt ? `${opt.emoji} ${opt.label}` : String(value);
+  }
+  if (question.type === "slider") return String(value);
+  return String(value);
+}

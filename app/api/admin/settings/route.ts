@@ -10,7 +10,7 @@ export async function GET() {
 
   const org = await db.organization.findUnique({
     where: { id: session.user.organizationId },
-    select: { name: true, slug: true, deadline: true },
+    select: { name: true, slug: true, deadline: true, housingType: true },
   });
 
   return NextResponse.json(org);
@@ -23,14 +23,18 @@ export async function PUT(req: NextRequest) {
   }
 
   try {
-    const { name, deadline } = await req.json();
+    const { name, deadline, housingType } = await req.json();
+
+    const data: { name?: string; deadline?: Date | null; housingType?: string } = {};
+    if (name !== undefined) data.name = name;
+    if (deadline !== undefined) data.deadline = deadline ? new Date(deadline) : null;
+    if (housingType !== undefined && ["coed", "single_gender"].includes(housingType)) {
+      data.housingType = housingType;
+    }
 
     const org = await db.organization.update({
       where: { id: session.user.organizationId },
-      data: {
-        name: name || undefined,
-        deadline: deadline ? new Date(deadline) : null,
-      },
+      data,
     });
 
     return NextResponse.json(org);

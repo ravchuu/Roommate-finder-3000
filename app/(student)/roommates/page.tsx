@@ -26,6 +26,7 @@ interface MatchProfile {
   photo: string | null;
   preferredRoomSizes: number[];
   compatibility: number;
+  explanation?: string;
   tags: Tag[];
   hasSurvey: boolean;
   inGroup: boolean;
@@ -48,12 +49,41 @@ export default function RoommatesPage() {
   const [sendingRequest, setSendingRequest] = useState<string | null>(null);
   const [sentRequests, setSentRequests] = useState<Set<string>>(new Set());
 
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [emptyReason, setEmptyReason] = useState<string | undefined>(undefined);
+
   useEffect(() => {
     async function load() {
-      const res = await fetch("/api/compatibility");
-      const data = await res.json();
-      setMatches(data.matches || []);
-      setLoading(false);
+      setLoadError(null);
+      setEmptyReason(undefined);
+      try {
+        const res = await fetch("/api/compatibility");
+        const text = await res.text();
+        if (!text.trim()) {
+          setMatches([]);
+          setLoading(false);
+          setLoadError("No response from server.");
+          return;
+        }
+        const data = JSON.parse(text);
+        setMatches(data.matches ?? []);
+        setEmptyReason(data.emptyReason);
+        if (!res.ok) {
+          const msg = data.error ?? "Failed to load matches.";
+          if (res.status === 404) {
+            setLoadError("Your account wasn't found. If you reset the database, log out and sign in again.");
+          } else if (res.status === 401) {
+            setLoadError("Please log in again.");
+          } else {
+            setLoadError(msg);
+          }
+        }
+      } catch {
+        setMatches([]);
+        setLoadError("Could not load matches. Try again.");
+      } finally {
+        setLoading(false);
+      }
     }
     load();
 
@@ -214,6 +244,11 @@ export default function RoommatesPage() {
                       {match.bio}
                     </p>
                   )}
+                  {match.explanation && (
+                    <p className="text-xs text-muted-foreground mb-2 leading-snug">
+                      {match.explanation}
+                    </p>
+                  )}
                   <div className="flex flex-wrap gap-1">
                     {match.tags.map((tag) => (
                       <span
@@ -272,9 +307,40 @@ export default function RoommatesPage() {
         ))}
 
         {filtered.length === 0 && (
-          <div className="text-center py-12 text-muted-foreground">
-            <UserSearch className="h-12 w-12 mx-auto mb-4 opacity-50" />
-            <p>No matches found. Try adjusting your search or filters.</p>
+          <div className="text-center py-12 text-muted-foreground space-y-2">
+            {loadError ? (
+              <>
+                <p className="font-medium text-foreground">{loadError}</p>
+                <p className="text-sm">Refresh the page or try again later.</p>
+                {loadError.includes("log out and sign in") && (
+                  <div className="mt-4 p-4 rounded-xl bg-muted/50 text-left max-w-md mx-auto text-sm">
+                    <p className="font-medium text-foreground mb-2">Demo login (after running seed):</p>
+                    <p className="mb-1">Org code: <strong>westfield</strong></p>
+                    <p className="mb-1">Email: <strong>alex.chen@university.edu</strong></p>
+                    <p>Password: <strong>student123</strong></p>
+                  </div>
+                )}
+              </>
+            ) : (
+              <>
+                <UserSearch className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p className="font-medium text-foreground">No compatible roommates right now</p>
+                <p className="text-sm max-w-md mx-auto">
+                  {emptyReason === "no_other_students"
+                    ? "There are no other students in your organization who have claimed their profile yet. Once others join and complete onboarding, they’ll show up here."
+                    : emptyReason === "single_gender"
+                      ? "Your organization uses single-gender housing and there are no other students with the same gender who have claimed their profile yet."
+                      : "Try adjusting your search or filters. If you just joined, more matches may appear as others complete their profiles."}
+                </p>
+                {emptyReason === "no_other_students" && (
+                  <div className="mt-4 p-4 rounded-xl bg-muted/50 text-left max-w-md mx-auto text-sm">
+                    <p className="font-medium text-foreground mb-2">To see matches with demo data:</p>
+                    <p className="mb-1">1. Run in terminal: <code className="bg-muted px-1 rounded">npx tsx prisma/seed.ts</code></p>
+                    <p className="mb-1">2. Log out, then sign in with org <strong>westfield</strong>, email <strong>alex.chen@university.edu</strong>, password <strong>student123</strong>.</p>
+                  </div>
+                )}
+              </>
+            )}
           </div>
         )}
       </div>

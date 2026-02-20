@@ -56,6 +56,23 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Cannot send request to yourself" }, { status: 400 });
   }
 
+  const [fromStudent, toStudent, org] = await Promise.all([
+    db.student.findUnique({ where: { id: session.user.id }, select: { gender: true } }),
+    db.student.findUnique({ where: { id: toStudentId }, select: { gender: true, organizationId: true } }),
+    db.organization.findUnique({
+      where: { id: session.user.organizationId },
+      select: { housingType: true },
+    }),
+  ]);
+  if (!toStudent || toStudent.organizationId !== session.user.organizationId) {
+    return NextResponse.json({ error: "Student not found" }, { status: 404 });
+  }
+  if (org?.housingType === "single_gender" && fromStudent?.gender && toStudent.gender) {
+    if (fromStudent.gender.toLowerCase() !== toStudent.gender.toLowerCase()) {
+      return NextResponse.json({ error: "Your organization uses single-gender housing; you can only match with the same gender" }, { status: 400 });
+    }
+  }
+
   const existing = await db.roommateRequest.findFirst({
     where: { fromStudentId: session.user.id, toStudentId, status: "pending" },
   });
@@ -109,13 +126,12 @@ export async function PUT(req: NextRequest) {
 // Three-way branching on accept
 // ---------------------------------------------------------------------------
 async function handleAccept(fromStudentId: string, toStudentId: string) {
-  // Check for mutual acceptance (both directions accepted)
   const mutual = await db.roommateRequest.findFirst({
     where: { fromStudentId: toStudentId, toStudentId: fromStudentId, status: "accepted" },
   });
-  if (!mutual) return; // not mutual yet — wait for the other side
+  if (!mutual) return;
 
-  const [fromMembership, toMembership, fromStudent] = await Promise.all([
+  const [fromMembership, toMembership, fromStudent, toStudent] = await Promise.all([
     db.groupMember.findUnique({
       where: { studentId: fromStudentId },
       include: { group: { include: { members: true } } },
@@ -124,26 +140,56 @@ async function handleAccept(fromStudentId: string, toStudentId: string) {
       where: { studentId: toStudentId },
       include: { group: { include: { members: true } } },
     }),
-    db.student.findUnique({ where: { id: fromStudentId }, select: { organizationId: true } }),
+    db.student.findUnique({ where: { id: fromStudentId }, select: { organizationId: true, gender: true } }),
+    db.student.findUnique({ where: { id: toStudentId }, select: { gender: true } }),
   ]);
 
-  if (!fromStudent) return;
+  const org = fromStudent
+    ? await db.organization.findUnique({
+        where: { id: fromStudent.organizationId },
+        select: { housingType: true },
+      })
+    : null;
+
+  if (!fromStudent || !toStudent) return;
   const orgId = fromStudent.organizationId;
   const fromGroup = fromMembership?.group;
   const toGroup = toMembership?.group;
 
+  const isSingleGender = org?.housingType === "single_gender";
+  const sameGender = (a: string | null, b: string | null) =>
+    a != null && b != null && a.toLowerCase() === b.toLowerCase();
+
+  if (isSingleGender && !sameGender(fromStudent.gender, toStudent.gender)) {
+    return; // do not create group / invite / merge across genders
+  }
+
   if (!fromGroup && !toGroup) {
-    // SOLO + SOLO → create new group
     await createGroupFromPair(fromStudentId, toStudentId, orgId);
   } else if (fromGroup && !toGroup) {
-    // toStudent is solo, fromStudent is in a group → invite toStudent into fromStudent's group
+    if (isSingleGender) {
+      const groupGender = fromGroup.members.length
+        ? (await db.student.findUnique({ where: { id: fromGroup.members[0].studentId }, select: { gender: true } }))?.gender
+        : null;
+      if (groupGender != null && toStudent.gender != null && groupGender.toLowerCase() !== toStudent.gender.toLowerCase()) return;
+    }
     await createJoinInvite(fromGroup.id, toStudentId, fromStudentId);
   } else if (!fromGroup && toGroup) {
-    // fromStudent is solo, toStudent is in a group → invite fromStudent into toStudent's group
+    if (isSingleGender) {
+      const groupGender = toGroup.members.length
+        ? (await db.student.findUnique({ where: { id: toGroup.members[0].studentId }, select: { gender: true } }))?.gender
+        : null;
+      if (groupGender != null && fromStudent.gender != null && groupGender.toLowerCase() !== fromStudent.gender.toLowerCase()) return;
+    }
     await createJoinInvite(toGroup.id, fromStudentId, toStudentId);
   } else if (fromGroup && toGroup && fromGroup.id !== toGroup.id) {
-    // Both in different groups → merge request
+    if (isSingleGender) {
+      const [g1, g2] = await Promise.all([
+        fromGroup.members.length ? db.student.findUnique({ where: { id: fromGroup.members[0].studentId }, select: { gender: true } }) : null,
+        toGroup.members.length ? db.student.findUnique({ where: { id: toGroup.members[0].studentId }, select: { gender: true } }) : null,
+      ]);
+      if (g1?.gender == null || g2?.gender == null || g1.gender.toLowerCase() !== g2.gender.toLowerCase()) return;
+    }
     await createMergeRequest(fromGroup.id, toGroup.id, fromStudentId);
   }
-  // If same group — do nothing
 }

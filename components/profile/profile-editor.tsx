@@ -1,12 +1,15 @@
 "use client";
 
 import { useState, useRef } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Camera,
   Save,
   Loader2,
   CheckCircle2,
   SlidersHorizontal,
+  Pencil,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -20,7 +23,42 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { SURVEY_QUESTIONS } from "@/lib/survey-questions";
+import { generateTags, type Tag } from "@/lib/tags";
+import { cn } from "@/lib/utils";
+
+const TAG_COLORS: Record<string, string> = {
+  blue: "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300",
+  green: "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300",
+  yellow: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300",
+  purple: "bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300",
+  pink: "bg-pink-100 text-pink-700 dark:bg-pink-900 dark:text-pink-300",
+  orange: "bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300",
+};
+
+const BIG_FIVE_LABELS: { key: keyof BigFiveScores; label: string }[] = [
+  { key: "O", label: "Openness" },
+  { key: "C", label: "Conscientiousness" },
+  { key: "E", label: "Extraversion" },
+  { key: "A", label: "Agreeableness" },
+  { key: "N", label: "Neuroticism" },
+];
+
+interface BigFiveScores {
+  O: number;
+  C: number;
+  E: number;
+  A: number;
+  N: number;
+}
 
 interface ProfileData {
   id: string;
@@ -31,6 +69,7 @@ interface ProfileData {
   bio: string | null;
   photo: string | null;
   preferredRoomSizes: number[];
+  bigFiveScores: BigFiveScores | null;
   surveyAnswers: Record<string, string | number> | null;
   matchWeights: Record<string, number>;
 }
@@ -55,6 +94,11 @@ export function ProfileEditor({ profile }: { profile: ProfileData }) {
   const [saved, setSaved] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [photoUrl, setPhotoUrl] = useState(profile.photo);
+  const [bigFive, setBigFive] = useState<BigFiveScores>(() =>
+    profile.bigFiveScores
+      ? { ...profile.bigFiveScores }
+      : { O: 50, C: 50, E: 50, A: 50, N: 50 }
+  );
   const fileRef = useRef<HTMLInputElement>(null);
 
   async function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -76,6 +120,10 @@ export function ProfileEditor({ profile }: { profile: ProfileData }) {
     setUploading(false);
   }
 
+  const router = useRouter();
+  const [bigFiveDialogOpen, setBigFiveDialogOpen] = useState(false);
+  const [savingBigFive, setSavingBigFive] = useState(false);
+
   async function handleSave() {
     setSaving(true);
     setSaved(false);
@@ -89,6 +137,18 @@ export function ProfileEditor({ profile }: { profile: ProfileData }) {
     setSaving(false);
     setSaved(true);
     setTimeout(() => setSaved(false), 3000);
+  }
+
+  async function handleSaveBigFive() {
+    setSavingBigFive(true);
+    await fetch("/api/profile", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ bigFiveScores: bigFive }),
+    });
+    setSavingBigFive(false);
+    setBigFiveDialogOpen(false);
+    router.refresh();
   }
 
   return (
@@ -154,8 +214,108 @@ export function ProfileEditor({ profile }: { profile: ProfileData }) {
               {bio.length}/300
             </p>
           </div>
+
+          {profile.surveyAnswers && Object.keys(profile.surveyAnswers).length > 0 && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm">How others see you</Label>
+                <Link
+                  href="/survey"
+                  className="text-xs font-medium text-primary hover:underline flex items-center gap-1"
+                >
+                  <Pencil className="h-3 w-3" /> Edit survey
+                </Link>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {generateTags(profile.surveyAnswers).map((tag: Tag) => (
+                  <span
+                    key={tag.label}
+                    className={cn(
+                      "px-2.5 py-0.5 rounded-full text-xs font-medium",
+                      TAG_COLORS[tag.color] || TAG_COLORS.blue
+                    )}
+                  >
+                    {tag.label}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
+
+      <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-card px-4 py-3">
+        <span className="text-sm font-medium">Personality (Big Five):</span>
+        {profile.bigFiveScores ? (
+          <span className="text-sm text-muted-foreground">
+            O {profile.bigFiveScores.O} · C {profile.bigFiveScores.C} · E {profile.bigFiveScores.E} · A {profile.bigFiveScores.A} · N {profile.bigFiveScores.N}
+          </span>
+        ) : (
+          <span className="text-sm text-muted-foreground">Not set</span>
+        )}
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="ml-auto shrink-0"
+          onClick={() => setBigFiveDialogOpen(true)}
+        >
+          <Pencil className="h-3.5 w-3.5 mr-1" />
+          {profile.bigFiveScores ? "Edit" : "Enter scores"}
+        </Button>
+      </div>
+
+      <Dialog open={bigFiveDialogOpen} onOpenChange={setBigFiveDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Big Five scores</DialogTitle>
+            <DialogDescription>
+              Take the free{" "}
+              <a
+                href="https://bigfive-test.com/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary underline hover:no-underline"
+              >
+                Big Five test
+              </a>{" "}
+              then enter your scores (0–100 per trait).
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-5">
+            {BIG_FIVE_LABELS.map(({ key, label }) => (
+              <div key={key} className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <Label className="text-sm">
+                    {label} <span className="text-muted-foreground font-mono">({key})</span>
+                  </Label>
+                  <span className="text-sm text-muted-foreground font-mono w-10 text-right">
+                    {bigFive[key]}
+                  </span>
+                </div>
+                <Slider
+                  value={[bigFive[key]]}
+                  onValueChange={([val]) =>
+                    setBigFive((prev) => ({ ...prev, [key]: val }))
+                  }
+                  min={0}
+                  max={100}
+                  step={1}
+                />
+              </div>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBigFiveDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSaveBigFive} disabled={savingBigFive}>
+              {savingBigFive && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Card>
         <CardHeader>

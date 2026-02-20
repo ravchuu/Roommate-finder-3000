@@ -12,34 +12,60 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
 import { SURVEY_QUESTIONS, type SurveyAnswers } from "@/lib/survey-questions";
+
+const BIG_FIVE_KEYS = ["O", "C", "E", "A", "N"] as const;
+const BIG_FIVE_LABELS: Record<string, string> = {
+  O: "Openness",
+  C: "Conscientiousness",
+  E: "Extraversion",
+  A: "Agreeableness",
+  N: "Neuroticism",
+};
+
+type BigFiveScores = Record<(typeof BIG_FIVE_KEYS)[number], number>;
+
+const DEFAULT_BIG_FIVE: BigFiveScores = { O: 50, C: 50, E: 50, A: 50, N: 50 };
 
 export default function SurveyPage() {
   const router = useRouter();
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<SurveyAnswers>({});
+  const [bigFive, setBigFive] = useState<BigFiveScores>(() => ({ ...DEFAULT_BIG_FIVE }));
   const [direction, setDirection] = useState(1);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [complete, setComplete] = useState(false);
 
+  const totalQuestionSteps = SURVEY_QUESTIONS.length;
+  const totalSteps = totalQuestionSteps + 1; // +1 for Big Five
+  const isBigFiveStep = step === totalQuestionSteps;
+
   useEffect(() => {
     async function load() {
-      const res = await fetch("/api/survey");
-      const data = await res.json();
-      if (data.answers) setAnswers(data.answers);
+      const [surveyRes, profileRes] = await Promise.all([
+        fetch("/api/survey"),
+        fetch("/api/profile"),
+      ]);
+      const surveyData = await surveyRes.json();
+      const profileData = await profileRes.json();
+      if (surveyData.answers) setAnswers(surveyData.answers);
+      if (profileData.bigFiveScores && typeof profileData.bigFiveScores === "object") {
+        setBigFive((prev) => ({ ...prev, ...profileData.bigFiveScores }));
+      }
       setLoading(false);
     }
     load();
   }, []);
 
-  const question = SURVEY_QUESTIONS[step];
-  const totalSteps = SURVEY_QUESTIONS.length;
+  const question = !isBigFiveStep ? SURVEY_QUESTIONS[step] : null;
   const progress = ((step + 1) / totalSteps) * 100;
 
   function setAnswer(value: string | number) {
-    setAnswers((prev) => ({ ...prev, [question.key]: value }));
+    if (question) setAnswers((prev) => ({ ...prev, [question.key]: value }));
   }
 
   function next() {
@@ -56,12 +82,20 @@ export default function SurveyPage() {
     }
   }
 
+  const bigFiveValid =
+    BIG_FIVE_KEYS.every((k) => typeof bigFive[k] === "number" && bigFive[k] >= 0 && bigFive[k] <= 100);
+
   async function handleSubmit() {
     setSaving(true);
     await fetch("/api/survey", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ answers }),
+    });
+    await fetch("/api/profile", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ bigFiveScores: bigFive }),
     });
     setComplete(true);
     setSaving(false);
@@ -97,8 +131,9 @@ export default function SurveyPage() {
     );
   }
 
-  const canProceed =
-    !question.required || answers[question.key] !== undefined;
+  const canProceedQuestion =
+    question && (!question.required || answers[question.key] !== undefined);
+  const canProceed = isBigFiveStep ? bigFiveValid : canProceedQuestion;
 
   return (
     <div className="max-w-xl mx-auto">
@@ -107,7 +142,7 @@ export default function SurveyPage() {
           <div className="flex items-center gap-2">
             <ClipboardList className="h-5 w-5 text-primary" />
             <span className="text-sm font-medium">
-              Question {step + 1} of {totalSteps}
+              {isBigFiveStep ? "Step" : "Question"} {step + 1} of {totalSteps}
             </span>
           </div>
           <span className="text-sm text-muted-foreground">
@@ -134,65 +169,108 @@ export default function SurveyPage() {
           transition={{ duration: 0.25 }}
           className="min-h-[300px]"
         >
-          <h2 className="text-2xl font-bold mb-2">{question.title}</h2>
-          <p className="text-muted-foreground mb-6">{question.description}</p>
-
-          {question.type === "select" && question.options && (
-            <div className="space-y-2">
-              {question.options.map((opt) => (
-                <button
-                  key={opt.value}
-                  onClick={() => setAnswer(opt.value)}
-                  className={cn(
-                    "w-full text-left px-4 py-3 rounded-xl border transition-all flex items-center gap-3",
-                    answers[question.key] === opt.value
-                      ? "border-primary bg-primary/5 ring-2 ring-primary/20"
-                      : "border-border hover:border-primary/50 hover:bg-accent"
-                  )}
+          {isBigFiveStep ? (
+            <div className="space-y-6">
+              <h2 className="text-2xl font-bold mb-2">Big Five personality scores</h2>
+              <p className="text-muted-foreground mb-6">
+                This step is <strong>required</strong>. Take the free{" "}
+                <a
+                  href="https://bigfive-test.com/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary font-medium underline hover:no-underline"
                 >
-                  <span className="text-xl">{opt.emoji}</span>
-                  <span className="font-medium">{opt.label}</span>
-                </button>
-              ))}
-            </div>
-          )}
-
-          {question.type === "slider" && (
-            <div className="space-y-4">
-              <div className="flex gap-2">
-                {Array.from(
-                  { length: (question.max || 5) - (question.min || 1) + 1 },
-                  (_, i) => i + (question.min || 1)
-                ).map((val) => (
-                  <button
-                    key={val}
-                    onClick={() => setAnswer(val)}
-                    className={cn(
-                      "flex-1 py-4 rounded-xl border text-lg font-bold transition-all",
-                      answers[question.key] === val
-                        ? "border-primary bg-primary text-primary-foreground"
-                        : "border-border hover:border-primary/50 hover:bg-accent"
-                    )}
-                  >
-                    {val}
-                  </button>
+                  Big Five personality test
+                </a>{" "}
+                (~10 min), then enter your scores below (0–100 per trait).
+              </p>
+              <div className="space-y-5">
+                {BIG_FIVE_KEYS.map((key) => (
+                  <div key={key} className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <Label className="text-sm">
+                        {BIG_FIVE_LABELS[key]} <span className="text-muted-foreground font-mono">({key})</span>
+                      </Label>
+                      <span className="text-sm text-muted-foreground font-mono w-10 text-right">
+                        {bigFive[key]}
+                      </span>
+                    </div>
+                    <Slider
+                      value={[bigFive[key]]}
+                      onValueChange={([val]) =>
+                        setBigFive((prev) => ({ ...prev, [key]: val }))
+                      }
+                      min={0}
+                      max={100}
+                      step={1}
+                    />
+                  </div>
                 ))}
               </div>
-              <div className="flex justify-between text-sm text-muted-foreground">
-                <span>{question.labels?.min}</span>
-                <span>{question.labels?.max}</span>
-              </div>
             </div>
-          )}
+          ) : question ? (
+            <>
+              <h2 className="text-2xl font-bold mb-2">{question.title}</h2>
+              <p className="text-muted-foreground mb-6">{question.description}</p>
 
-          {question.type === "text" && (
-            <Input
-              value={(answers[question.key] as string) || ""}
-              onChange={(e) => setAnswer(e.target.value)}
-              placeholder="e.g. INTJ, or describe yourself briefly..."
-              className="text-lg py-6"
-            />
-          )}
+              {question.type === "select" && question.options && (
+                <div className="space-y-2">
+                  {question.options.map((opt) => (
+                    <button
+                      key={opt.value}
+                      onClick={() => setAnswer(opt.value)}
+                      className={cn(
+                        "w-full text-left px-4 py-3 rounded-xl border transition-all flex items-center gap-3",
+                        answers[question.key] === opt.value
+                          ? "border-primary bg-primary/5 ring-2 ring-primary/20"
+                          : "border-border hover:border-primary/50 hover:bg-accent"
+                      )}
+                    >
+                      <span className="text-xl">{opt.emoji}</span>
+                      <span className="font-medium">{opt.label}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {question.type === "slider" && (
+                <div className="space-y-4">
+                  <div className="flex gap-2">
+                    {Array.from(
+                      { length: (question.max || 5) - (question.min || 1) + 1 },
+                      (_, i) => i + (question.min || 1)
+                    ).map((val) => (
+                      <button
+                        key={val}
+                        onClick={() => setAnswer(val)}
+                        className={cn(
+                          "flex-1 py-4 rounded-xl border text-lg font-bold transition-all",
+                          answers[question.key] === val
+                            ? "border-primary bg-primary text-primary-foreground"
+                            : "border-border hover:border-primary/50 hover:bg-accent"
+                        )}
+                      >
+                        {val}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex justify-between text-sm text-muted-foreground">
+                    <span>{question.labels?.min}</span>
+                    <span>{question.labels?.max}</span>
+                  </div>
+                </div>
+              )}
+
+              {question.type === "text" && (
+                <Input
+                  value={(answers[question.key] as string) || ""}
+                  onChange={(e) => setAnswer(e.target.value)}
+                  placeholder="e.g. INTJ, or describe yourself briefly..."
+                  className="text-lg py-6"
+                />
+              )}
+            </>
+          ) : null}
         </motion.div>
       </AnimatePresence>
 

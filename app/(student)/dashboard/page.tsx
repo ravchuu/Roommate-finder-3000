@@ -2,17 +2,10 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import Link from "next/link";
-import {
-  ClipboardList,
-  DoorOpen,
-  ArrowRight,
-  Pencil,
-  Sparkles,
-  Users,
-} from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { ClipboardList, ArrowRight, Sparkles } from "lucide-react";
 import { ProfileEditor } from "@/components/profile/profile-editor";
-import { FadeIn, StaggerParent, StaggerChild } from "@/components/motion/animated-section";
+import { FadeIn } from "@/components/motion/animated-section";
+import { DashboardCards } from "@/components/dashboard/dashboard-cards";
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -41,6 +34,12 @@ export default async function DashboardPage() {
 
   const hasSurvey = !!student.surveyResponse;
   const group = student.groupMemberships[0]?.group;
+  const preferredRoomSizes = student.preferredRoomSizes
+    ? (JSON.parse(student.preferredRoomSizes) as number[])
+    : [];
+  const roomStatusLabel = group
+    ? `In Group (${group.members.length}${group.targetRoomSize ? `/${group.targetRoomSize}` : ""}) — ${group.status}`
+    : "Not in a group yet";
 
   const profileData = {
     id: student.id,
@@ -53,6 +52,9 @@ export default async function DashboardPage() {
     preferredRoomSizes: student.preferredRoomSizes
       ? JSON.parse(student.preferredRoomSizes)
       : [],
+    bigFiveScores: student.bigFiveScores
+      ? (JSON.parse(student.bigFiveScores) as { O: number; C: number; E: number; A: number; N: number })
+      : null,
     surveyAnswers: student.surveyResponse
       ? JSON.parse(student.surveyResponse.answers)
       : null,
@@ -82,66 +84,11 @@ export default async function DashboardPage() {
         </div>
       </FadeIn>
 
-      <StaggerParent className="grid sm:grid-cols-3 gap-4 mb-8">
-        <StaggerChild>
-          <div className="rounded-2xl bg-pastel-teal/30 border border-pastel-teal/50 p-5 relative overflow-hidden hover:shadow-md transition-shadow">
-            <div className="absolute top-0 right-0 w-20 h-20 bg-pastel-teal/20 rounded-full -translate-y-6 translate-x-6" />
-            <DoorOpen className="h-5 w-5 text-primary mb-3 relative z-10" />
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-              Room Preferences
-            </p>
-            <div className="flex flex-wrap gap-1.5 mt-1">
-              {(student.preferredRoomSizes
-                ? JSON.parse(student.preferredRoomSizes) as number[]
-                : []
-              ).map((size: number) => (
-                <span key={size} className="text-sm font-bold bg-white/60 rounded-full px-2.5 py-0.5">
-                  {size}-person
-                </span>
-              ))}
-            </div>
-          </div>
-        </StaggerChild>
-
-        <StaggerChild>
-          <div className="rounded-2xl bg-pastel-mint/30 border border-pastel-mint/50 p-5 relative overflow-hidden hover:shadow-md transition-shadow">
-            <div className="absolute top-0 right-0 w-20 h-20 bg-pastel-mint/20 rounded-full -translate-y-6 translate-x-6" />
-            <ClipboardList className="h-5 w-5 text-primary mb-3 relative z-10" />
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-              Lifestyle Survey
-            </p>
-            <div className="flex items-center gap-2 mt-1">
-              <Badge
-                variant={hasSurvey ? "default" : "secondary"}
-                className="rounded-full"
-              >
-                {hasSurvey ? "Completed" : "Not Started"}
-              </Badge>
-              <Link href="/survey" className="text-primary hover:underline">
-                <Pencil className="h-3.5 w-3.5" />
-              </Link>
-            </div>
-          </div>
-        </StaggerChild>
-
-        <StaggerChild>
-          <div className="rounded-2xl bg-pastel-green/30 border border-pastel-green/50 p-5 relative overflow-hidden hover:shadow-md transition-shadow">
-            <div className="absolute top-0 right-0 w-20 h-20 bg-pastel-green/20 rounded-full -translate-y-6 translate-x-6" />
-            <Users className="h-5 w-5 text-primary mb-3 relative z-10" />
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-              Room Status
-            </p>
-            <Badge
-              variant={group ? "default" : "secondary"}
-              className="mt-1 rounded-full"
-            >
-              {group
-                ? `In Group (${group.members.length}${group.targetRoomSize ? `/${group.targetRoomSize}` : ""}) — ${group.status}`
-                : "Not in a group yet"}
-            </Badge>
-          </div>
-        </StaggerChild>
-      </StaggerParent>
+      <DashboardCards
+        preferredRoomSizes={preferredRoomSizes}
+        hasSurvey={hasSurvey}
+        roomStatusLabel={roomStatusLabel}
+      />
 
       {!hasSurvey && (
         <FadeIn delay={0.3}>

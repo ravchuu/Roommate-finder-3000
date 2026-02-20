@@ -8,87 +8,35 @@ function hashPassword(password: string): string {
 }
 
 const SURVEY_PRESETS = [
-  {
-    sleepSchedule: "10pm-6am",
-    cleanliness: 5,
-    guestFrequency: "rarely",
-    noiseTolerance: "low",
-    dailyRoutine: "morning",
-    personality: "INTJ",
-  },
-  {
-    sleepSchedule: "11pm-7am",
-    cleanliness: 4,
-    guestFrequency: "sometimes",
-    noiseTolerance: "medium",
-    dailyRoutine: "morning",
-    personality: "ENFP",
-  },
-  {
-    sleepSchedule: "12am-8am",
-    cleanliness: 3,
-    guestFrequency: "sometimes",
-    noiseTolerance: "medium",
-    dailyRoutine: "flexible",
-    personality: "ISTP",
-  },
-  {
-    sleepSchedule: "1am-9am",
-    cleanliness: 2,
-    guestFrequency: "often",
-    noiseTolerance: "high",
-    dailyRoutine: "night",
-    personality: "ESFP",
-  },
-  {
-    sleepSchedule: "2am-10am",
-    cleanliness: 3,
-    guestFrequency: "often",
-    noiseTolerance: "high",
-    dailyRoutine: "night",
-    personality: "ENTP",
-  },
-  {
-    sleepSchedule: "10pm-6am",
-    cleanliness: 4,
-    guestFrequency: "rarely",
-    noiseTolerance: "low",
-    dailyRoutine: "morning",
-    personality: "ISFJ",
-  },
-  {
-    sleepSchedule: "11pm-7am",
-    cleanliness: 5,
-    guestFrequency: "rarely",
-    noiseTolerance: "low",
-    dailyRoutine: "morning",
-    personality: "ISTJ",
-  },
-  {
-    sleepSchedule: "12am-8am",
-    cleanliness: 3,
-    guestFrequency: "sometimes",
-    noiseTolerance: "medium",
-    dailyRoutine: "flexible",
-    personality: "INFP",
-  },
-  {
-    sleepSchedule: "1am-9am",
-    cleanliness: 4,
-    guestFrequency: "sometimes",
-    noiseTolerance: "medium",
-    dailyRoutine: "night",
-    personality: "ENTJ",
-  },
-  {
-    sleepSchedule: "10pm-6am",
-    cleanliness: 5,
-    guestFrequency: "never",
-    noiseTolerance: "low",
-    dailyRoutine: "morning",
-    personality: "INFJ",
-  },
+  { sleepSchedule: "10pm-6am", cleanliness: 5, guestFrequency: "rarely", noiseTolerance: "low", dailyRoutine: "morning", studyHabits: "library", personality: "INTJ" },
+  { sleepSchedule: "11pm-7am", cleanliness: 4, guestFrequency: "sometimes", noiseTolerance: "medium", dailyRoutine: "morning", studyHabits: "room", personality: "ENFP" },
+  { sleepSchedule: "12am-8am", cleanliness: 3, guestFrequency: "sometimes", noiseTolerance: "medium", dailyRoutine: "flexible", studyHabits: "mixed", personality: "ISTP" },
+  { sleepSchedule: "1am-9am", cleanliness: 2, guestFrequency: "often", noiseTolerance: "high", dailyRoutine: "night", studyHabits: "cafe", personality: "ESFP" },
+  { sleepSchedule: "2am-10am", cleanliness: 3, guestFrequency: "often", noiseTolerance: "high", dailyRoutine: "night", studyHabits: "room", personality: "ENTP" },
+  { sleepSchedule: "10pm-6am", cleanliness: 4, guestFrequency: "rarely", noiseTolerance: "low", dailyRoutine: "morning", studyHabits: "library", personality: "ISFJ" },
+  { sleepSchedule: "11pm-7am", cleanliness: 5, guestFrequency: "rarely", noiseTolerance: "low", dailyRoutine: "morning", studyHabits: "room", personality: "ISTJ" },
+  { sleepSchedule: "12am-8am", cleanliness: 3, guestFrequency: "sometimes", noiseTolerance: "medium", dailyRoutine: "flexible", studyHabits: "mixed", personality: "INFP" },
+  { sleepSchedule: "1am-9am", cleanliness: 4, guestFrequency: "sometimes", noiseTolerance: "medium", dailyRoutine: "night", studyHabits: "cafe", personality: "ENTJ" },
+  { sleepSchedule: "10pm-6am", cleanliness: 5, guestFrequency: "never", noiseTolerance: "low", dailyRoutine: "morning", studyHabits: "library", personality: "INFJ" },
 ];
+
+// Big Five: O, C, E, A, N (0–100). Variety for realistic compatibility spread.
+const BIG_FIVE_PRESETS: { O: number; C: number; E: number; A: number; N: number }[] = [
+  { O: 72, C: 65, E: 55, A: 78, N: 35 },
+  { O: 80, C: 50, E: 70, A: 65, N: 45 },
+  { O: 60, C: 70, E: 45, A: 72, N: 40 },
+  { O: 85, C: 45, E: 82, A: 60, N: 55 },
+  { O: 78, C: 55, E: 65, A: 68, N: 50 },
+  { O: 65, C: 78, E: 48, A: 82, N: 30 },
+  { O: 58, C: 82, E: 42, A: 75, N: 38 },
+  { O: 82, C: 52, E: 58, A: 70, N: 42 },
+  { O: 70, C: 68, E: 72, A: 65, N: 48 },
+  { O: 68, C: 72, E: 50, A: 80, N: 28 },
+  { O: 75, C: 60, E: 62, A: 70, N: 45 },
+  { O: 62, C: 75, E: 55, A: 76, N: 32 },
+];
+
+const TRAIT_KEYS = ["sleepSchedule", "cleanliness", "guestFrequency", "noiseTolerance", "dailyRoutine", "studyHabits"];
 
 const STUDENTS_DATA = [
   { name: "Alex Chen", age: 19, gender: "Male", email: "alex.chen@university.edu" },
@@ -212,12 +160,15 @@ async function main() {
   ];
   const students = [];
 
+  // Claim and fully set up all students so you can log in as any and see a full roster of matches
+  const numClaimed = STUDENTS_DATA.length;
   for (let i = 0; i < STUDENTS_DATA.length; i++) {
     const data = STUDENTS_DATA[i];
-    const isClaimed = i < 12;
+    const isClaimed = true;
     const surveyPreset = SURVEY_PRESETS[i % SURVEY_PRESETS.length];
+    const bigFive = BIG_FIVE_PRESETS[i % BIG_FIVE_PRESETS.length];
 
-    const isFirstUnclaimed = i === 12;
+    const isFirstUnclaimed = false;
     const student = await prisma.student.create({
       data: {
         organizationId: org.id,
@@ -228,6 +179,7 @@ async function main() {
         claimed: isClaimed,
         passwordHash: isClaimed ? hashPassword("student123") : null,
         preferredRoomSizes: isClaimed ? JSON.stringify(sizePresets[i % sizePresets.length]) : null,
+        bigFiveScores: bigFive ? JSON.stringify(bigFive) : null,
         bio: isClaimed ? BIOS[i] : null,
         onboardingComplete: isClaimed,
         ...(isFirstUnclaimed ? { claimToken: "test-claim-token" } : {}),
@@ -241,21 +193,27 @@ async function main() {
           answers: JSON.stringify(surveyPreset),
         },
       });
+      for (const traitKey of TRAIT_KEYS) {
+        await prisma.matchWeight.create({
+          data: {
+            studentId: student.id,
+            traitKey,
+            weight: 1.0,
+          },
+        });
+      }
     }
 
     students.push(student);
   }
 
-  console.log(`Created ${students.length} students (${12} claimed, ${STUDENTS_DATA.length - 12} unclaimed)`);
+  console.log(`Created ${students.length} students (all claimed with survey + Big Five + match weights)`);
 
   console.log("\n--- Demo Credentials ---");
   console.log("Admin: admin@westfield.edu / admin123");
-  console.log("Student (any claimed): student123");
-  console.log("");
-  console.log("--- First-time Claim Test ---");
+  console.log("Students (any): use password student123");
+  console.log("  e.g. alex.chen@university.edu, brianna.f@university.edu, c.ramirez@university.edu, ...");
   console.log("Org code: westfield");
-  console.log(`Email: ${STUDENTS_DATA[12].email}`);
-  console.log("Claim token: test-claim-token");
   console.log("------------------------\n");
 
   console.log("Seeding complete!");

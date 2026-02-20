@@ -33,6 +33,9 @@ export async function GET() {
     preferredRoomSizes: student.preferredRoomSizes
       ? JSON.parse(student.preferredRoomSizes)
       : [],
+    bigFiveScores: student.bigFiveScores
+      ? JSON.parse(student.bigFiveScores)
+      : null,
     surveyAnswers: student.surveyResponse
       ? JSON.parse(student.surveyResponse.answers)
       : null,
@@ -74,10 +77,23 @@ export async function PUT(req: NextRequest) {
   }
 
   const body = await req.json();
-  const { bio, matchWeights } = body;
+  const { bio, matchWeights, preferredRoomSizes, bigFiveScores } = body;
 
   const updateData: Record<string, unknown> = {};
   if (bio !== undefined) updateData.bio = bio;
+  if (preferredRoomSizes !== undefined) {
+    const arr = Array.isArray(preferredRoomSizes) ? preferredRoomSizes : [];
+    updateData.preferredRoomSizes = arr.length ? JSON.stringify(arr) : null;
+  }
+  if (bigFiveScores !== undefined) {
+    const scores = bigFiveScores && typeof bigFiveScores === "object"
+      ? bigFiveScores as Record<string, number>
+      : null;
+    const valid = scores && ["O", "C", "E", "A", "N"].every(
+      (k) => typeof scores[k] === "number" && scores[k] >= 0 && scores[k] <= 100
+    );
+    updateData.bigFiveScores = valid ? JSON.stringify(scores) : null;
+  }
 
   if (Object.keys(updateData).length > 0) {
     await db.student.update({
