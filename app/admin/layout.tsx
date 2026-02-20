@@ -1,7 +1,7 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { Shield, Users, Home, Settings, LogOut, DoorOpen } from "lucide-react";
+import { Shield, Users, Home, Settings, DoorOpen, Leaf } from "lucide-react";
 import { SignOutButton } from "./sign-out-button";
 
 export default async function AdminLayout({
@@ -14,17 +14,24 @@ export default async function AdminLayout({
 
   return (
     <div className="min-h-screen flex">
-      <aside className="w-64 bg-card border-r flex flex-col">
-        <div className="p-6 border-b">
-          <div className="flex items-center gap-2">
-            <Shield className="h-5 w-5 text-primary" />
-            <span className="font-bold">Admin Panel</span>
+      <aside className="w-64 bg-gradient-to-b from-pastel-teal/30 to-pastel-mint/20 border-r flex flex-col">
+        <div className="p-6 border-b border-border/60">
+          <div className="flex items-center gap-2.5">
+            <div className="h-8 w-8 rounded-xl bg-primary flex items-center justify-center">
+              <Leaf className="h-4 w-4 text-primary-foreground" />
+            </div>
+            <div>
+              <span className="font-bold text-sm">RF3000</span>
+              <span className="text-[10px] font-medium text-muted-foreground ml-1.5 bg-pastel-teal px-1.5 py-0.5 rounded-full">
+                Admin
+              </span>
+            </div>
           </div>
-          <p className="text-xs text-muted-foreground mt-1">
+          <p className="text-xs text-muted-foreground mt-2 truncate">
             {session.user.name}
           </p>
         </div>
-        <nav className="flex-1 p-4 space-y-1">
+        <nav className="flex-1 p-3 space-y-1">
           <NavLink href="/admin/dashboard" icon={<Home className="h-4 w-4" />}>
             Dashboard
           </NavLink>
@@ -41,7 +48,7 @@ export default async function AdminLayout({
             Settings
           </NavLink>
         </nav>
-        <div className="p-4 border-t">
+        <div className="p-3 border-t border-border/60">
           <SignOutButton />
         </div>
       </aside>
@@ -62,7 +69,7 @@ function NavLink({
   return (
     <Link
       href={href}
-      className="flex items-center gap-3 px-3 py-2 text-sm rounded-lg hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
+      className="flex items-center gap-3 px-3 py-2.5 text-sm rounded-xl hover:bg-white/60 transition-colors text-muted-foreground hover:text-foreground"
     >
       {icon}
       {children}

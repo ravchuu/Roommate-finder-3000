@@ -4,13 +4,13 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 import {
-  Users,
   LayoutDashboard,
   UserSearch,
   Mail,
   DoorOpen,
   LogOut,
   ClipboardList,
+  Leaf,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -26,11 +26,13 @@ export function StudentNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="border-b bg-background/80 backdrop-blur-sm sticky top-0 z-50">
+    <nav className="border-b border-border/60 bg-background/70 backdrop-blur-md sticky top-0 z-50">
       <div className="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between">
         <div className="flex items-center gap-6">
           <Link href="/dashboard" className="flex items-center gap-2">
-            <Users className="h-5 w-5 text-primary" />
+            <div className="h-7 w-7 rounded-lg bg-primary flex items-center justify-center">
+              <Leaf className="h-3.5 w-3.5 text-primary-foreground" />
+            </div>
             <span className="font-bold hidden sm:inline">RF3000</span>
           </Link>
           <div className="flex items-center gap-1">
@@ -39,10 +41,10 @@ export function StudentNav() {
                 key={link.href}
                 href={link.href}
                 className={cn(
-                  "flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg transition-colors",
+                  "flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-xl transition-colors",
                   pathname === link.href
-                    ? "bg-primary/10 text-primary font-medium"
-                    : "text-muted-foreground hover:text-foreground hover:bg-accent"
+                    ? "bg-pastel-teal/60 text-primary font-medium"
+                    : "text-muted-foreground hover:text-foreground hover:bg-pastel-teal/30"
                 )}
               >
                 <link.icon className="h-4 w-4" />
@@ -53,7 +55,7 @@ export function StudentNav() {
         </div>
         <button
           onClick={() => signOut({ callbackUrl: "/" })}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+          className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-xl text-muted-foreground hover:text-foreground hover:bg-pastel-rose/40 transition-colors"
         >
           <LogOut className="h-4 w-4" />
           <span className="hidden sm:inline">Sign Out</span>
