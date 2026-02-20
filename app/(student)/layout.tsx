@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { StudentNav } from "@/components/layout/student-nav";
+import { DeadlineBanner } from "@/components/layout/deadline-banner";
 
 export default async function StudentLayout({
   children,
@@ -13,6 +14,7 @@ export default async function StudentLayout({
   return (
     <div className="min-h-screen bg-background">
       <StudentNav />
+      <DeadlineBanner />
       <main className="max-w-6xl mx-auto px-6 py-8">{children}</main>
     </div>
   );

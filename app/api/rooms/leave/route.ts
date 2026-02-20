@@ -1,11 +1,26 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { getDeadlineStatus, isChangeRestricted } from "@/lib/deadline";
 
 export async function POST() {
   const session = await auth();
   if (!session || session.user.role !== "student") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const deadlineStatus = await getDeadlineStatus(session.user.organizationId);
+  if (deadlineStatus.isPast) {
+    return NextResponse.json(
+      { error: "The deadline has passed. Rooms are finalized." },
+      { status: 400 }
+    );
+  }
+  if (isChangeRestricted(deadlineStatus.hoursRemaining)) {
+    return NextResponse.json(
+      { error: "Room changes are restricted within 6 hours of the deadline." },
+      { status: 400 }
+    );
   }
 
   const membership = await db.roomMember.findUnique({

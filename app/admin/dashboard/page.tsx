@@ -1,8 +1,9 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
-import { Users, UserCheck, DoorOpen, Clock } from "lucide-react";
+import { Users, UserCheck, DoorOpen, Clock, Lock } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { FinalizeButton } from "./finalize-button";
 
 export default async function AdminDashboardPage() {
   const session = await auth();
@@ -10,14 +11,33 @@ export default async function AdminDashboardPage() {
 
   const orgId = session.user.organizationId;
 
-  const [totalStudents, claimedStudents, roomConfigs, org, totalRooms] =
-    await Promise.all([
-      db.student.count({ where: { organizationId: orgId } }),
-      db.student.count({ where: { organizationId: orgId, claimed: true } }),
-      db.roomConfig.findMany({ where: { organizationId: orgId } }),
-      db.organization.findUnique({ where: { id: orgId } }),
-      db.room.count({ where: { organizationId: orgId } }),
-    ]);
+  const [
+    totalStudents,
+    claimedStudents,
+    roomConfigs,
+    org,
+    totalRooms,
+    lockedRooms,
+    studentsInRooms,
+    unassignedStudents,
+  ] = await Promise.all([
+    db.student.count({ where: { organizationId: orgId } }),
+    db.student.count({ where: { organizationId: orgId, claimed: true } }),
+    db.roomConfig.findMany({ where: { organizationId: orgId } }),
+    db.organization.findUnique({ where: { id: orgId } }),
+    db.room.count({ where: { organizationId: orgId } }),
+    db.room.count({ where: { organizationId: orgId, status: "locked" } }),
+    db.roomMember.count({
+      where: { room: { organizationId: orgId } },
+    }),
+    db.student.count({
+      where: {
+        organizationId: orgId,
+        claimed: true,
+        roomMemberships: { none: {} },
+      },
+    }),
+  ]);
 
   const totalCapacity = roomConfigs.reduce(
     (sum, rc) => sum + rc.roomSize * rc.totalRooms,
@@ -31,6 +51,8 @@ export default async function AdminDashboardPage() {
       )
     : null;
 
+  const allLocked = totalRooms > 0 && lockedRooms === totalRooms;
+
   return (
     <div className="p-8">
       <h1 className="text-3xl font-bold mb-2">Dashboard</h1>
@@ -43,6 +65,7 @@ export default async function AdminDashboardPage() {
           icon={<Users className="h-5 w-5" />}
           label="Total Students"
           value={totalStudents}
+          subtitle={`${studentsInRooms} in rooms, ${unassignedStudents} unassigned`}
         />
         <StatCard
           icon={<UserCheck className="h-5 w-5" />}
@@ -69,27 +92,62 @@ export default async function AdminDashboardPage() {
         />
       </div>
 
-      <div className="mt-8">
-        <h2 className="text-xl font-semibold mb-4">Room Configurations</h2>
-        <div className="grid md:grid-cols-3 gap-4">
-          {roomConfigs.map((rc) => (
-            <Card key={rc.id}>
-              <CardContent className="pt-6">
-                <div className="text-2xl font-bold">
-                  {rc.roomSize}-person rooms
+      <div className="mt-8 grid lg:grid-cols-2 gap-8">
+        <div>
+          <h2 className="text-xl font-semibold mb-4">Room Configurations</h2>
+          <div className="space-y-3">
+            {roomConfigs.map((rc) => (
+              <Card key={rc.id}>
+                <CardContent className="pt-6">
+                  <div className="text-2xl font-bold">
+                    {rc.roomSize}-person rooms
+                  </div>
+                  <p className="text-muted-foreground">
+                    {rc.totalRooms} rooms available (
+                    {rc.roomSize * rc.totalRooms} beds)
+                  </p>
+                </CardContent>
+              </Card>
+            ))}
+            {roomConfigs.length === 0 && (
+              <p className="text-muted-foreground">
+                No room configurations yet.
+              </p>
+            )}
+          </div>
+        </div>
+
+        <div>
+          <h2 className="text-xl font-semibold mb-4">Finalization</h2>
+          <Card>
+            <CardContent className="pt-6 space-y-4">
+              {allLocked ? (
+                <div className="flex items-center gap-2 text-green-600">
+                  <Lock className="h-5 w-5" />
+                  <p className="font-medium">
+                    All rooms are finalized and locked.
+                  </p>
                 </div>
-                <p className="text-muted-foreground">
-                  {rc.totalRooms} rooms available ({rc.roomSize * rc.totalRooms}{" "}
-                  beds)
-                </p>
-              </CardContent>
-            </Card>
-          ))}
-          {roomConfigs.length === 0 && (
-            <p className="text-muted-foreground col-span-3">
-              No room configurations yet. Go to Room Config to set them up.
-            </p>
-          )}
+              ) : (
+                <>
+                  <p className="text-sm text-muted-foreground">
+                    Auto-assign all unmatched students based on compatibility
+                    and lock all rooms. This action cannot be easily undone.
+                  </p>
+                  <div className="text-sm space-y-1">
+                    <p>
+                      <strong>{unassignedStudents}</strong> claimed students
+                      still need rooms
+                    </p>
+                    <p>
+                      <strong>{totalRooms}</strong> rooms already formed
+                    </p>
+                  </div>
+                  <FinalizeButton />
+                </>
+              )}
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>
