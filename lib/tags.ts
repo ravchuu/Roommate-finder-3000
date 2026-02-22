@@ -5,53 +5,53 @@ export interface Tag {
   color: "blue" | "green" | "yellow" | "purple" | "pink" | "orange";
 }
 
-export function generateTags(answers: SurveyAnswers): Tag[] {
+export function generateTags(answers: SurveyAnswers | null | undefined): Tag[] {
   const tags: Tag[] = [];
+  if (!answers || typeof answers !== "object") return tags;
 
-  const sleep = answers.sleepSchedule as string;
-  if (sleep === "9pm-5am" || sleep === "10pm-6am") {
+  const bedtime = answers.sleepBedtime as string | undefined;
+  const wake = answers.sleepWake as string | undefined;
+  if (bedtime === "8-10pm" && (wake === "5-7am" || wake === "7-9am")) {
     tags.push({ label: "Early Bird", color: "yellow" });
-  } else if (sleep === "1am-9am" || sleep === "2am-10am") {
+  } else if ((bedtime === "12-2am" || bedtime === "2am-later") && (wake === "9-11am" || wake === "12pm-later")) {
     tags.push({ label: "Night Owl", color: "purple" });
+  } else if (bedtime === "depends" || wake === "depends") {
+    tags.push({ label: "Flexible Sleep", color: "blue" });
   }
 
-  const clean = answers.cleanliness as number;
-  if (clean >= 4) {
+  const clean = Number(answers.cleanliness);
+  if (!Number.isNaN(clean) && clean >= 4) {
     tags.push({ label: "Very Tidy", color: "green" });
-  } else if (clean <= 2) {
+  } else if (!Number.isNaN(clean) && clean <= 2) {
     tags.push({ label: "Relaxed Cleaner", color: "orange" });
   }
 
-  const guests = answers.guestFrequency as string;
+  const guests = answers.guestFrequency as string | undefined;
   if (guests === "never" || guests === "rarely") {
     tags.push({ label: "Low Guests", color: "blue" });
-  } else if (guests === "often") {
+  } else if (guests === "often" || guests === "very-often") {
     tags.push({ label: "Social Host", color: "pink" });
   }
 
-  const noise = answers.noiseTolerance as string;
+  const noise = answers.noiseTolerance as string | undefined;
   if (noise === "silent" || noise === "low") {
     tags.push({ label: "Quiet Space", color: "blue" });
-  } else if (noise === "high") {
+  } else if (noise === "high" || noise === "any") {
     tags.push({ label: "Noise Friendly", color: "orange" });
   }
 
-  const routine = answers.dailyRoutine as string;
-  if (routine === "morning") {
-    tags.push({ label: "Morning Person", color: "yellow" });
-  } else if (routine === "night") {
-    tags.push({ label: "Night Active", color: "purple" });
+  const space = answers.spaceUsage as string | undefined;
+  if (space === "always-room" || space === "mostly-room") {
+    tags.push({ label: "Room Homebody", color: "blue" });
+  } else if (space === "mostly-common" || space === "always-common") {
+    tags.push({ label: "Common Area", color: "green" });
   }
 
-  const study = answers.studyHabits as string;
-  if (study === "room") {
-    tags.push({ label: "Studies in Room", color: "blue" });
-  } else if (study === "library") {
-    tags.push({ label: "Library Goer", color: "green" });
-  }
-
-  if (answers.personality) {
-    tags.push({ label: String(answers.personality).toUpperCase(), color: "pink" });
+  const relationship = answers.roommateRelationship as string | undefined;
+  if (relationship === "close-friends" || relationship === "good-friends") {
+    tags.push({ label: "Wants Close Friends", color: "pink" });
+  } else if (relationship === "keep-to-ourselves") {
+    tags.push({ label: "Prefers Independence", color: "purple" });
   }
 
   return tags;

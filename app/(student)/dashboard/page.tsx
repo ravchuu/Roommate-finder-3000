@@ -7,9 +7,19 @@ import { ProfileEditor } from "@/components/profile/profile-editor";
 import { FadeIn } from "@/components/motion/animated-section";
 import { DashboardCards } from "@/components/dashboard/dashboard-cards";
 
+function safeJsonParse<T>(raw: string | null | undefined, fallback: T): T {
+  if (raw == null || raw === "") return fallback;
+  try {
+    const parsed = JSON.parse(raw as string);
+    return parsed as T;
+  } catch {
+    return fallback;
+  }
+}
+
 export default async function DashboardPage() {
   const session = await auth();
-  if (!session) redirect("/login");
+  if (!session?.user?.id) redirect("/login");
 
   const student = await db.student.findUnique({
     where: { id: session.user.id },
@@ -34,9 +44,7 @@ export default async function DashboardPage() {
 
   const hasSurvey = !!student.surveyResponse;
   const group = student.groupMemberships[0]?.group;
-  const preferredRoomSizes = student.preferredRoomSizes
-    ? (JSON.parse(student.preferredRoomSizes) as number[])
-    : [];
+  const preferredRoomSizes = safeJsonParse<number[]>(student.preferredRoomSizes, []);
   const roomStatusLabel = group
     ? `In Group (${group.members.length}${group.targetRoomSize ? `/${group.targetRoomSize}` : ""}) — ${group.status}`
     : "Not in a group yet";
@@ -49,19 +57,23 @@ export default async function DashboardPage() {
     gender: student.gender,
     bio: student.bio,
     photo: student.photo,
-    preferredRoomSizes: student.preferredRoomSizes
-      ? JSON.parse(student.preferredRoomSizes)
-      : [],
-    bigFiveScores: student.bigFiveScores
-      ? (JSON.parse(student.bigFiveScores) as { O: number; C: number; E: number; A: number; N: number })
-      : null,
-    surveyAnswers: student.surveyResponse
-      ? JSON.parse(student.surveyResponse.answers)
-      : null,
-    matchWeights: student.matchWeights.reduce(
-      (acc, w) => ({ ...acc, [w.traitKey]: w.weight }),
-      {} as Record<string, number>
+    preferredRoomSizes: Array.isArray(preferredRoomSizes) ? preferredRoomSizes : [],
+    bigFiveScores: safeJsonParse<{ O: number; C: number; E: number; A: number; N: number } | null>(
+      student.bigFiveScores,
+      null
     ),
+    surveyAnswers: student.surveyResponse
+      ? safeJsonParse<Record<string, string | number> | null>(
+          student.surveyResponse.answers,
+          null
+        )
+      : null,
+    matchWeights: Array.isArray(student.matchWeights)
+      ? student.matchWeights.reduce(
+          (acc, w) => ({ ...acc, [w.traitKey]: w.weight }),
+          {} as Record<string, number>
+        )
+      : {},
   };
 
   return (

@@ -90,7 +90,20 @@ Add/Save.
 
 ---
 
-### Variable 3: NEXTAUTH_URL
+### Variable 3: AUTH_TRUST_HOST
+
+- **Name:**  
+  `AUTH_TRUST_HOST`
+- **Value:**  
+  `true`
+
+(This tells the auth system to trust your Railway URL so login works on every page.)
+
+Add/Save.
+
+---
+
+### Variable 4: NEXTAUTH_URL
 
 - **Name:**  
   `NEXTAUTH_URL`
@@ -178,7 +191,7 @@ If you’re not sure which option you have: try Option 1 first. If there’s no 
 
 - [ ] **Step A** – Found and copied your app URL.
 - [ ] **Step B** – Added a volume with mount path `/data`.
-- [ ] **Step C** – Added variables: `DATABASE_URL`, `AUTH_SECRET`, `NEXTAUTH_URL`.
+- [ ] **Step C** – Added variables: `DATABASE_URL`, `AUTH_SECRET`, `AUTH_TRUST_HOST`, `NEXTAUTH_URL`.
 - [ ] **Step D** – Build = `npm run build`, Start = `npm start` (if you could set them).
 - [ ] **Step E** – Ran `npx prisma migrate deploy` and `npx tsx prisma/seed.ts` once.
 - [ ] **Step F** – Opened the app in the browser and logged in with the demo account.

@@ -117,6 +117,7 @@ If Railway doesn’t offer a shell, you can run the same commands via the **Rail
 - [ ] Volume added with mount path `/data`.
 - [ ] `DATABASE_URL` = `file:/data/sqlite.db`
 - [ ] `AUTH_SECRET` = output of `npx auth secret`
+- [ ] `AUTH_TRUST_HOST` = `true`
 - [ ] `NEXTAUTH_URL` = your app URL (no trailing slash).
 - [ ] Build = `npm run build`, Start = `npm start`.
 - [ ] Ran `npx prisma migrate deploy` and `npx tsx prisma/seed.ts` once.

@@ -11,7 +11,6 @@ import {
   ClipboardList,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
@@ -171,18 +170,22 @@ export default function SurveyPage() {
         >
           {isBigFiveStep ? (
             <div className="space-y-6">
-              <h2 className="text-2xl font-bold mb-2">Big Five personality scores</h2>
-              <p className="text-muted-foreground mb-6">
-                This step is <strong>required</strong>. Take the free{" "}
+              <h2 className="text-2xl font-bold mb-2">Big Five personality (final step)</h2>
+              <p className="text-muted-foreground mb-4">
+                Complete this to access your dashboard and roommate matches. Take the free Big Five test (about 10 minutes), then record your scores below.
+              </p>
+              <p className="mb-6">
                 <a
                   href="https://bigfive-test.com/"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-primary font-medium underline hover:no-underline"
+                  className="inline-flex items-center gap-2 text-primary font-medium underline hover:no-underline"
                 >
-                  Big Five personality test
-                </a>{" "}
-                (~10 min), then enter your scores below (0–100 per trait).
+                  Take the Big Five personality test →
+                </a>
+              </p>
+              <p className="text-sm text-muted-foreground mb-4">
+                Enter your scores below (0–100 per trait). If your test uses a 1–5 scale, multiply each score by 20.
               </p>
               <div className="space-y-5">
                 {BIG_FIVE_KEYS.map((key) => (
@@ -231,43 +234,6 @@ export default function SurveyPage() {
                     </button>
                   ))}
                 </div>
-              )}
-
-              {question.type === "slider" && (
-                <div className="space-y-4">
-                  <div className="flex gap-2">
-                    {Array.from(
-                      { length: (question.max || 5) - (question.min || 1) + 1 },
-                      (_, i) => i + (question.min || 1)
-                    ).map((val) => (
-                      <button
-                        key={val}
-                        onClick={() => setAnswer(val)}
-                        className={cn(
-                          "flex-1 py-4 rounded-xl border text-lg font-bold transition-all",
-                          answers[question.key] === val
-                            ? "border-primary bg-primary text-primary-foreground"
-                            : "border-border hover:border-primary/50 hover:bg-accent"
-                        )}
-                      >
-                        {val}
-                      </button>
-                    ))}
-                  </div>
-                  <div className="flex justify-between text-sm text-muted-foreground">
-                    <span>{question.labels?.min}</span>
-                    <span>{question.labels?.max}</span>
-                  </div>
-                </div>
-              )}
-
-              {question.type === "text" && (
-                <Input
-                  value={(answers[question.key] as string) || ""}
-                  onChange={(e) => setAnswer(e.target.value)}
-                  placeholder="e.g. INTJ, or describe yourself briefly..."
-                  className="text-lg py-6"
-                />
               )}
             </>
           ) : null}

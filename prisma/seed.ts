@@ -1,5 +1,35 @@
 import { PrismaClient } from "@prisma/client";
 import { createHash } from "crypto";
+import { readFileSync, existsSync } from "fs";
+import { join } from "path";
+
+// Load DATABASE_URL and resolve to one absolute path so seed and app always use the same DB
+function loadEnv() {
+  const root = process.cwd();
+  for (const file of [".env.local", ".env"]) {
+    const envPath = join(root, file);
+    if (existsSync(envPath)) {
+      const content = readFileSync(envPath, "utf-8");
+      for (const line of content.split("\n")) {
+        const match = line.match(/^\s*([^#=]+)=(.*)$/);
+        if (match) process.env[match[1].trim()] = match[2].trim().replace(/^["']|["']$/g, "");
+      }
+      break;
+    }
+  }
+  const url = process.env.DATABASE_URL || "file:./dev.db";
+  let absoluteDbPath: string;
+  if (url.startsWith("file:./") || url.startsWith("file:../") || url === "file:./dev.db") {
+    const rel = url.replace(/^file:/, "").replace(/^\.\//, "");
+    const resolved = join(root, "prisma", rel === "dev.db" ? "dev.db" : rel);
+    absoluteDbPath = resolved.replace(/\\/g, "/");
+    process.env.DATABASE_URL = "file:" + absoluteDbPath;
+  } else {
+    absoluteDbPath = url.replace(/^file:/, "").replace(/\\/g, "/");
+  }
+  return absoluteDbPath;
+}
+const SEED_DB_PATH = loadEnv();
 
 const prisma = new PrismaClient();
 
@@ -8,16 +38,16 @@ function hashPassword(password: string): string {
 }
 
 const SURVEY_PRESETS = [
-  { sleepSchedule: "10pm-6am", cleanliness: 5, guestFrequency: "rarely", noiseTolerance: "low", dailyRoutine: "morning", studyHabits: "library", personality: "INTJ" },
-  { sleepSchedule: "11pm-7am", cleanliness: 4, guestFrequency: "sometimes", noiseTolerance: "medium", dailyRoutine: "morning", studyHabits: "room", personality: "ENFP" },
-  { sleepSchedule: "12am-8am", cleanliness: 3, guestFrequency: "sometimes", noiseTolerance: "medium", dailyRoutine: "flexible", studyHabits: "mixed", personality: "ISTP" },
-  { sleepSchedule: "1am-9am", cleanliness: 2, guestFrequency: "often", noiseTolerance: "high", dailyRoutine: "night", studyHabits: "cafe", personality: "ESFP" },
-  { sleepSchedule: "2am-10am", cleanliness: 3, guestFrequency: "often", noiseTolerance: "high", dailyRoutine: "night", studyHabits: "room", personality: "ENTP" },
-  { sleepSchedule: "10pm-6am", cleanliness: 4, guestFrequency: "rarely", noiseTolerance: "low", dailyRoutine: "morning", studyHabits: "library", personality: "ISFJ" },
-  { sleepSchedule: "11pm-7am", cleanliness: 5, guestFrequency: "rarely", noiseTolerance: "low", dailyRoutine: "morning", studyHabits: "room", personality: "ISTJ" },
-  { sleepSchedule: "12am-8am", cleanliness: 3, guestFrequency: "sometimes", noiseTolerance: "medium", dailyRoutine: "flexible", studyHabits: "mixed", personality: "INFP" },
-  { sleepSchedule: "1am-9am", cleanliness: 4, guestFrequency: "sometimes", noiseTolerance: "medium", dailyRoutine: "night", studyHabits: "cafe", personality: "ENTJ" },
-  { sleepSchedule: "10pm-6am", cleanliness: 5, guestFrequency: "never", noiseTolerance: "low", dailyRoutine: "morning", studyHabits: "library", personality: "INFJ" },
+  { sleepBedtime: "8-10pm", sleepWake: "5-7am", cleanliness: "5", guestFrequency: "rarely", noiseTolerance: "low", spaceUsage: "mostly-room", roommateRelationship: "friendly-independent", conflictStyle: "direct" },
+  { sleepBedtime: "10-12am", sleepWake: "7-9am", cleanliness: "4", guestFrequency: "sometimes", noiseTolerance: "moderate", spaceUsage: "mix", roommateRelationship: "hang-out-sometimes", conflictStyle: "hints" },
+  { sleepBedtime: "10-12am", sleepWake: "7-9am", cleanliness: "3", guestFrequency: "sometimes", noiseTolerance: "moderate", spaceUsage: "mix", roommateRelationship: "friendly-independent", conflictStyle: "let-go" },
+  { sleepBedtime: "12-2am", sleepWake: "9-11am", cleanliness: "2", guestFrequency: "often", noiseTolerance: "high", spaceUsage: "mostly-common", roommateRelationship: "good-friends", conflictStyle: "direct" },
+  { sleepBedtime: "12-2am", sleepWake: "9-11am", cleanliness: "3", guestFrequency: "often", noiseTolerance: "any", spaceUsage: "mostly-room", roommateRelationship: "hang-out-sometimes", conflictStyle: "avoid" },
+  { sleepBedtime: "8-10pm", sleepWake: "5-7am", cleanliness: "4", guestFrequency: "rarely", noiseTolerance: "low", spaceUsage: "mostly-room", roommateRelationship: "keep-to-ourselves", conflictStyle: "hints" },
+  { sleepBedtime: "10-12am", sleepWake: "7-9am", cleanliness: "5", guestFrequency: "rarely", noiseTolerance: "low", spaceUsage: "always-room", roommateRelationship: "friendly-independent", conflictStyle: "let-go" },
+  { sleepBedtime: "10-12am", sleepWake: "9-11am", cleanliness: "3", guestFrequency: "sometimes", noiseTolerance: "moderate", spaceUsage: "mix", roommateRelationship: "good-friends", conflictStyle: "depends" },
+  { sleepBedtime: "12-2am", sleepWake: "9-11am", cleanliness: "4", guestFrequency: "sometimes", noiseTolerance: "moderate", spaceUsage: "mostly-common", roommateRelationship: "hang-out-sometimes", conflictStyle: "direct" },
+  { sleepBedtime: "8-10pm", sleepWake: "5-7am", cleanliness: "5", guestFrequency: "never", noiseTolerance: "silent", spaceUsage: "always-room", roommateRelationship: "keep-to-ourselves", conflictStyle: "avoid" },
 ];
 
 // Big Five: O, C, E, A, N (0–100). Variety for realistic compatibility spread.
@@ -36,7 +66,7 @@ const BIG_FIVE_PRESETS: { O: number; C: number; E: number; A: number; N: number 
   { O: 62, C: 75, E: 55, A: 76, N: 32 },
 ];
 
-const TRAIT_KEYS = ["sleepSchedule", "cleanliness", "guestFrequency", "noiseTolerance", "dailyRoutine", "studyHabits"];
+const TRAIT_KEYS = ["sleepBedtime", "sleepWake", "cleanliness", "guestFrequency", "noiseTolerance", "spaceUsage", "roommateRelationship", "conflictStyle"];
 
 const STUDENTS_DATA = [
   { name: "Alex Chen", age: 19, gender: "Male", email: "alex.chen@university.edu" },
@@ -215,7 +245,10 @@ async function main() {
   console.log("  e.g. alex.chen@university.edu, brianna.f@university.edu, c.ramirez@university.edu, ...");
   console.log("Org code: westfield");
   console.log("------------------------\n");
-
+  console.log("Database file:", SEED_DB_PATH);
+  console.log("If the app says 'demo not found', put this in .env.local (same folder as package.json):");
+  console.log('  DATABASE_URL="file:' + SEED_DB_PATH.replace(/\\/g, "/") + '"');
+  console.log("Then restart the app (stop with Ctrl+C, run npm run dev again).\n");
   console.log("Seeding complete!");
 }
 
