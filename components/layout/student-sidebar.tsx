@@ -9,6 +9,7 @@ import {
   LayoutDashboard,
   UserSearch,
   Mail,
+  MessageCircle,
   DoorOpen,
   LogOut,
   ClipboardList,
@@ -22,6 +23,7 @@ const links = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/survey", label: "Lifestyle Survey", icon: ClipboardList },
   { href: "/roommates", label: "Find Roommates", icon: UserSearch },
+  { href: "/messages", label: "Messages", icon: MessageCircle },
   { href: "/requests", label: "Requests", icon: Mail },
   { href: "/room", label: "My Group", icon: DoorOpen },
 ];

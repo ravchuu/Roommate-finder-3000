@@ -6,6 +6,7 @@ import {
   Loader2,
   Search,
   UserPlus,
+  MessageCircle,
   Filter,
   UserSearch,
   ChevronLeft,
@@ -52,6 +53,8 @@ export default function RoommatesPage() {
   const [filterTag, setFilterTag] = useState<string | null>(null);
   const [sendingRequest, setSendingRequest] = useState<string | null>(null);
   const [sentRequests, setSentRequests] = useState<Set<string>>(new Set());
+  const [openingMessage, setOpeningMessage] = useState<string | null>(null);
+  const [messageError, setMessageError] = useState<{ id: string; text: string } | null>(null);
 
   const [loadError, setLoadError] = useState<string | null>(null);
   const [emptyReason, setEmptyReason] = useState<string | undefined>(undefined);
@@ -116,6 +119,29 @@ export default function RoommatesPage() {
       setSentRequests((prev) => new Set(prev).add(toId));
     }
     setSendingRequest(null);
+  }
+
+  async function openMessage(otherStudentId: string) {
+    setMessageError(null);
+    setOpeningMessage(otherStudentId);
+    try {
+      const res = await fetch("/api/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ otherStudentId }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.conversationId) {
+        window.location.href = `/messages?conversation=${data.conversationId}`;
+        return;
+      }
+      const message = typeof data?.error === "string" ? data.error : "Couldn't open chat. Try again.";
+      setMessageError({ id: otherStudentId, text: message });
+    } catch {
+      setMessageError({ id: otherStudentId, text: "Couldn't open chat. Try again." });
+    } finally {
+      setOpeningMessage(null);
+    }
   }
 
   const allTags = Array.from(
@@ -295,25 +321,47 @@ export default function RoommatesPage() {
                     </div>
                     <p className="text-xs text-muted-foreground">match</p>
                   </div>
-                  <Button
-                    size="sm"
-                    onClick={() => sendRequest(match.id)}
-                    disabled={
-                      sendingRequest === match.id ||
-                      sentRequests.has(match.id)
-                    }
-                  >
-                    {sendingRequest === match.id ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : sentRequests.has(match.id) ? (
-                      "Sent"
-                    ) : (
-                      <>
-                        <UserPlus className="h-4 w-4 mr-1" />
-                        Request
-                      </>
+                  <div className="flex flex-col gap-2 w-full sm:w-auto sm:min-w-[7rem]">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => openMessage(match.id)}
+                      disabled={openingMessage === match.id}
+                      className="w-full"
+                    >
+                      {openingMessage === match.id ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <>
+                          <MessageCircle className="h-4 w-4 mr-1" />
+                          Message
+                        </>
+                      )}
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => sendRequest(match.id)}
+                      disabled={
+                        sendingRequest === match.id ||
+                        sentRequests.has(match.id)
+                      }
+                      className="w-full"
+                    >
+                      {sendingRequest === match.id ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : sentRequests.has(match.id) ? (
+                        "Sent"
+                      ) : (
+                        <>
+                          <UserPlus className="h-4 w-4 mr-1" />
+                          Request
+                        </>
+                      )}
+                    </Button>
+                    {messageError?.id === match.id && (
+                      <p className="text-xs text-destructive mt-0.5">{messageError.text}</p>
                     )}
-                  </Button>
+                  </div>
                 </div>
               </div>
             </CardContent>
