@@ -2,7 +2,7 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import Link from "next/link";
-import { ClipboardList, ArrowRight, Sparkles } from "lucide-react";
+import { ClipboardList, ArrowRight, Sparkles, UserSearch } from "lucide-react";
 import { ProfileEditor } from "@/components/profile/profile-editor";
 import { FadeIn } from "@/components/motion/animated-section";
 import { DashboardCards } from "@/components/dashboard/dashboard-cards";
@@ -79,7 +79,7 @@ export default async function DashboardPage() {
   return (
     <div>
       <FadeIn>
-        <div className="mb-8">
+        <div className="mb-6">
           <div className="flex items-center gap-3 mb-1">
             <div className="h-10 w-10 rounded-2xl bg-pastel-teal flex items-center justify-center">
               <Sparkles className="h-5 w-5 text-primary" />
@@ -94,6 +94,30 @@ export default async function DashboardPage() {
             </div>
           </div>
         </div>
+      </FadeIn>
+
+      <FadeIn delay={0.05}>
+        <Link
+          href="/roommates"
+          className="block mb-6 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded-2xl"
+        >
+          <div className="rounded-2xl bg-gradient-to-r from-primary to-primary/90 text-primary-foreground p-6 shadow-lg hover:shadow-xl transition-all group border-0">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-4 min-w-0">
+                <div className="h-14 w-14 rounded-2xl bg-white/20 flex items-center justify-center shrink-0">
+                  <UserSearch className="h-7 w-7" />
+                </div>
+                <div className="min-w-0">
+                  <p className="font-bold text-xl">Find a roommate</p>
+                  <p className="text-primary-foreground/90 text-sm mt-0.5">
+                    Browse compatible matches and send requests
+                  </p>
+                </div>
+              </div>
+              <ArrowRight className="h-6 w-6 shrink-0 opacity-90 group-hover:translate-x-1 transition-transform" />
+            </div>
+          </div>
+        </Link>
       </FadeIn>
 
       <DashboardCards
