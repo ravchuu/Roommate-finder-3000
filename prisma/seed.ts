@@ -66,7 +66,7 @@ const BIG_FIVE_PRESETS: { O: number; C: number; E: number; A: number; N: number 
   { O: 62, C: 75, E: 55, A: 76, N: 32 },
 ];
 
-const TRAIT_KEYS = ["sleepBedtime", "sleepWake", "cleanliness", "guestFrequency", "noiseTolerance", "spaceUsage", "roommateRelationship", "conflictStyle"];
+const TRAIT_KEYS = ["sleepBedtime", "sleepWake", "cleanliness", "guestFrequency", "noiseTolerance", "spaceUsage", "roommateRelationship", "conflictStyle", "roomSizePreference"];
 
 const STUDENTS_DATA = [
   { name: "Alex Chen", age: 19, gender: "Male", email: "alex.chen@university.edu" },

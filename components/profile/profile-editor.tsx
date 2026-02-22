@@ -31,7 +31,6 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { SURVEY_QUESTIONS } from "@/lib/survey-questions";
 import { generateTags, type Tag } from "@/lib/tags";
 import { cn } from "@/lib/utils";
 
@@ -74,15 +73,23 @@ interface ProfileData {
   matchWeights: Record<string, number>;
 }
 
-const TRAIT_KEYS = SURVEY_QUESTIONS.filter((q) => q.required).map((q) => ({
-  key: q.key,
-  label: q.title.replace("What's your ", "").replace("?", "").replace("How ", ""),
-}));
+/** Options for "prioritize when matching" checkboxes. Checked = weight 2, unchecked = 1. */
+const MATCH_PRIORITY_OPTIONS: { key: string; label: string }[] = [
+  { key: "roomSizePreference", label: "Room size" },
+  { key: "cleanliness", label: "Cleanliness" },
+  { key: "noiseTolerance", label: "Noise tolerance" },
+  { key: "spaceUsage", label: "Space usage" },
+  { key: "conflictStyle", label: "Conflict style" },
+  { key: "guestFrequency", label: "Guest frequency" },
+  { key: "sleepBedtime", label: "Bedtime" },
+  { key: "sleepWake", label: "Wake time" },
+  { key: "roommateRelationship", label: "What you want from a roommate" },
+];
 
 export function ProfileEditor({ profile }: { profile: ProfileData }) {
   const [bio, setBio] = useState(profile.bio || "");
-  const [weights, setWeights] = useState<Record<string, number>>(
-    TRAIT_KEYS.reduce(
+  const [weights, setWeights] = useState<Record<string, number>>(() =>
+    MATCH_PRIORITY_OPTIONS.reduce(
       (acc, t) => ({
         ...acc,
         [t.key]: profile.matchWeights[t.key] ?? 1.0,
@@ -324,32 +331,35 @@ export function ProfileEditor({ profile }: { profile: ProfileData }) {
             <CardTitle>Match Priorities</CardTitle>
           </div>
           <CardDescription>
-            Adjust how much each trait matters when finding roommate matches.
-            Higher values mean the trait is more important to you.
+            Tick what matters most when matching. The system will prioritize
+            matching you with people who align on these.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
-          {TRAIT_KEYS.map((trait) => (
-            <div key={trait.key} className="space-y-2">
-              <div className="flex justify-between items-center">
-                <Label className="text-sm capitalize">
-                  {trait.key.replace(/([A-Z])/g, " $1").trim()}
-                </Label>
-                <span className="text-sm text-muted-foreground font-mono">
-                  {(weights[trait.key] || 1).toFixed(1)}
-                </span>
-              </div>
-              <Slider
-                value={[weights[trait.key] || 1]}
-                onValueChange={([val]) =>
-                  setWeights((prev) => ({ ...prev, [trait.key]: val }))
-                }
-                min={0}
-                max={2}
-                step={0.1}
-              />
-            </div>
-          ))}
+        <CardContent>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {MATCH_PRIORITY_OPTIONS.map((option) => {
+              const isPrioritized = (weights[option.key] ?? 1.0) >= 1.5;
+              return (
+                <label
+                  key={option.key}
+                  className="flex items-center gap-3 rounded-md border p-3 cursor-pointer hover:bg-muted/50 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring"
+                >
+                  <input
+                    type="checkbox"
+                    checked={isPrioritized}
+                    onChange={() =>
+                      setWeights((prev) => ({
+                        ...prev,
+                        [option.key]: isPrioritized ? 1.0 : 2.0,
+                      }))
+                    }
+                    className="h-4 w-4 rounded border-input text-primary focus:ring-2 focus:ring-ring"
+                  />
+                  <span className="text-sm font-medium">{option.label}</span>
+                </label>
+              );
+            })}
+          </div>
         </CardContent>
       </Card>
 

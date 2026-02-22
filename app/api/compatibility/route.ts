@@ -58,6 +58,14 @@ export async function GET() {
       {} as Record<string, number>
     );
 
+    let myPreferredRoomSizes = safeJsonParse<number[]>(
+      currentStudent.preferredRoomSizes ?? null,
+      []
+    );
+    if (!Array.isArray(myPreferredRoomSizes)) {
+      myPreferredRoomSizes = [];
+    }
+
     const currentGroup = await db.groupMember.findUnique({
       where: { studentId: session.user.id },
     });
@@ -112,7 +120,9 @@ export async function GET() {
           theirAnswers,
           myWeights,
           myBigFive,
-          theirBigFive
+          theirBigFive,
+          myPreferredRoomSizes,
+          preferredRoomSizes
         );
 
         let tags: { label: string; color: string }[] = [];

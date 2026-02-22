@@ -39,7 +39,20 @@ const LIFESTYLE_LABELS: Record<string, string> = {
   spaceUsage: "space usage",
   roommateRelationship: "what you want from a roommate",
   conflictStyle: "conflict style",
+  roomSizePreference: "room size preference",
 };
+
+/** One score: 1 if preferred room sizes overlap (at least one size in common), else 0. */
+export function getRoomSizeTraitScores(
+  preferredA: number[],
+  preferredB: number[]
+): TraitScore[] {
+  const setB = new Set(preferredB);
+  const hasOverlap = preferredA.some((size) => setB.has(size));
+  return [
+    { key: "roomSizePreference", similarity: hasOverlap ? 1 : 0 },
+  ];
+}
 
 function ordinalSimilarity(a: string, b: string, order: string[]): number {
   const ia = order.indexOf(a);
@@ -237,9 +250,13 @@ export function computeCompatibilityWithBreakdown(
   answersB: SurveyAnswers,
   weights: Record<string, number> = {},
   bigFiveA: BigFiveScores | null = null,
-  bigFiveB: BigFiveScores | null = null
+  bigFiveB: BigFiveScores | null = null,
+  preferredRoomSizesA: number[] = [],
+  preferredRoomSizesB: number[] = []
 ): CompatibilityResult {
-  const lifestyleScores = computeTraitScores(answersA, answersB);
+  let lifestyleScores = computeTraitScores(answersA, answersB);
+  const roomSizeScores = getRoomSizeTraitScores(preferredRoomSizesA, preferredRoomSizesB);
+  lifestyleScores = [...lifestyleScores, ...roomSizeScores];
   const lifestyleScore =
     lifestyleScores.length === 0
       ? 0

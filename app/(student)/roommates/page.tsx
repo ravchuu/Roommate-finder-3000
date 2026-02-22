@@ -8,6 +8,8 @@ import {
   UserPlus,
   Filter,
   UserSearch,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,6 +34,8 @@ interface MatchProfile {
   inGroup: boolean;
 }
 
+const PAGE_SIZE = 12;
+
 const TAG_COLORS: Record<string, string> = {
   blue: "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300",
   green: "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300",
@@ -51,6 +55,7 @@ export default function RoommatesPage() {
 
   const [loadError, setLoadError] = useState<string | null>(null);
   const [emptyReason, setEmptyReason] = useState<string | undefined>(undefined);
+  const [page, setPage] = useState(1);
 
   useEffect(() => {
     async function load() {
@@ -127,6 +132,16 @@ export default function RoommatesPage() {
     return true;
   });
 
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const start = (safePage - 1) * PAGE_SIZE;
+  const paginated = filtered.slice(start, start + PAGE_SIZE);
+
+  // Reset to page 1 when search/filter changes
+  useEffect(() => {
+    setPage(1);
+  }, [search, filterTag]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -148,7 +163,7 @@ export default function RoommatesPage() {
           <h1 className="text-3xl font-bold">Potential Roommates</h1>
         </div>
         <p className="text-muted-foreground">
-          {matches.length} students ranked by compatibility
+          {matches.length} {matches.length === 1 ? "student" : "students"} ranked by compatibility (best first). Everyone in your org is shown.
         </p>
       </motion.div>
 
@@ -193,7 +208,7 @@ export default function RoommatesPage() {
       </div>
 
       <div className="space-y-3">
-        {filtered.map((match, index) => (
+        {paginated.map((match, index) => (
           <motion.div
             key={match.id}
             initial={{ opacity: 0, y: 14 }}
@@ -205,9 +220,9 @@ export default function RoommatesPage() {
           >
             <CardContent className="pt-6">
               <div className="flex items-start gap-4">
-                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2">
                   <span className="text-sm text-muted-foreground font-mono w-6">
-                    #{index + 1}
+                    #{start + index + 1}
                   </span>
                   <Avatar className="h-14 w-14">
                     <AvatarImage src={match.photo || undefined} />
@@ -305,6 +320,37 @@ export default function RoommatesPage() {
           </Card>
           </motion.div>
         ))}
+
+      {filtered.length > PAGE_SIZE && (
+        <div className="flex items-center justify-between gap-4 pt-6 pb-2">
+          <p className="text-sm text-muted-foreground">
+            Showing {start + 1}–{start + paginated.length} of {filtered.length}
+          </p>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={safePage <= 1}
+            >
+              <ChevronLeft className="h-4 w-4" />
+              Previous
+            </Button>
+            <span className="text-sm text-muted-foreground px-2">
+              Page {safePage} of {totalPages}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={safePage >= totalPages}
+            >
+              Next
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      )}
 
         {filtered.length === 0 && (
           <div className="text-center py-12 text-muted-foreground space-y-2">
