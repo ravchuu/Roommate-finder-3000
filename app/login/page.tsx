@@ -22,7 +22,13 @@ const DEMO_PASSWORD = "student123";
 
 export default function StudentLoginPage() {
   return (
-    <Suspense>
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-primary/10 p-4">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        </div>
+      }
+    >
       <StudentLoginForm />
     </Suspense>
   );

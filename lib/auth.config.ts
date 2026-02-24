@@ -1,6 +1,7 @@
 import type { NextAuthConfig } from "next-auth";
 
 export const authConfig: NextAuthConfig = {
+  trustHost: true, // required for Railway/proxy: avoid redirect to wrong URL and blank page after login
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
