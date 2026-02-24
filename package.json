@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev --webpack",
     "build": "prisma generate && next build",
-    "start": "next start",
+    "start": "npx prisma db push && npx tsx prisma/seed.ts && next start",
     "lint": "next lint",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
@@ -24,7 +24,8 @@
     "radix-ui": "^1.4.3",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
-    "tailwind-merge": "^3.5.0"
+    "tailwind-merge": "^3.5.0",
+    "tsx": "^4.21.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.2.0",
@@ -36,7 +37,6 @@
     "postcss": "^8.5.6",
     "prisma": "^6.19.2",
     "tailwindcss": "^4.2.0",
-    "tsx": "^4.21.0",
     "typescript": "^5.9.3"
   }
 }

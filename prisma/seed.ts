@@ -149,6 +149,13 @@ const BIOS = [
 ];
 
 async function main() {
+  // If database already has an org (e.g. already seeded), skip so we don't wipe data.
+  const existingOrgs = await prisma.organization.count();
+  if (existingOrgs > 0) {
+    console.log("Database already has data. Skipping seed (demo accounts already exist).");
+    return;
+  }
+
   console.log("Seeding database...");
 
   await prisma.message.deleteMany();
