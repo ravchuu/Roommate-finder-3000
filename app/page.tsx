@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Users, Shield, Brain, Clock, ArrowRight, Leaf } from "lucide-react";
+import { Users, Shield, Brain, Clock, ArrowRight, Leaf, Upload, Settings2, BarChart3 } from "lucide-react";
 
 export default function LandingPage() {
   return (
@@ -110,6 +110,53 @@ export default function LandingPage() {
             </div>
           </div>
         </section>
+
+        <section className="max-w-6xl mx-auto px-6 py-16">
+          <div className="bg-gradient-to-br from-pastel-teal/30 to-pastel-mint/30 border border-pastel-teal/60 rounded-3xl p-10">
+            <div className="flex items-center gap-2 mb-6">
+              <Shield className="h-6 w-6 text-primary" />
+              <h2 className="text-3xl font-bold">For administrators</h2>
+            </div>
+            <p className="text-muted-foreground mb-8 max-w-2xl">
+              Set up your organization’s rooming process in three steps: upload your student roster, set your rooming standards, then monitor matching and finalize.
+            </p>
+            <div className="grid md:grid-cols-3 gap-6 mb-8">
+              <AdminStep
+                icon={<Upload className="h-5 w-5" />}
+                step="1"
+                title="Upload roster"
+                description="Import students via CSV (name, email). Students get claim links to join the platform."
+              />
+              <AdminStep
+                icon={<Settings2 className="h-5 w-5" />}
+                step="2"
+                title="Set rooming standards"
+                description="Choose deadline, housing type (co-ed or single gender), and room sizes and counts."
+              />
+              <AdminStep
+                icon={<BarChart3 className="h-5 w-5" />}
+                step="3"
+                title="Monitor & finalize"
+                description="Track claims and groups on the dashboard. Lock and auto-assign when ready."
+              />
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <Link
+                href="/admin/login"
+                className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-xl font-medium hover:bg-primary/90 transition-colors shadow-sm"
+              >
+                <Shield className="h-4 w-4" />
+                Go to Admin
+              </Link>
+              <Link
+                href="/admin/setup"
+                className="inline-flex items-center gap-2 px-6 py-3 border border-pastel-teal bg-white/70 rounded-xl font-medium hover:bg-white transition-colors"
+              >
+                First-time admin? Create your organization
+              </Link>
+            </div>
+          </div>
+        </section>
       </main>
 
       <footer className="border-t border-border/60 py-8">
@@ -160,6 +207,29 @@ function Step({
         {number}
       </div>
       <h3 className="font-semibold mb-2">{title}</h3>
+      <p className="text-sm text-muted-foreground">{description}</p>
+    </div>
+  );
+}
+
+function AdminStep({
+  icon,
+  step,
+  title,
+  description,
+}: {
+  icon: React.ReactNode;
+  step: string;
+  title: string;
+  description: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-pastel-teal/60 bg-white/70 p-5 text-left">
+      <div className="h-10 w-10 rounded-xl bg-pastel-teal/60 text-primary flex items-center justify-center mb-3">
+        {icon}
+      </div>
+      <span className="text-xs font-semibold text-primary uppercase tracking-wide">Step {step}</span>
+      <h3 className="font-semibold mt-1 mb-2">{title}</h3>
       <p className="text-sm text-muted-foreground">{description}</p>
     </div>
   );

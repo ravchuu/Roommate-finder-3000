@@ -43,6 +43,7 @@ export async function GET() {
       (acc, w) => ({ ...acc, [w.traitKey]: w.weight }),
       {} as Record<string, number>
     ),
+    onboardingComplete: student.onboardingComplete,
   });
 }
 

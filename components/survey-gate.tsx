@@ -21,6 +21,8 @@ export function SurveyGate({ children }: { children: React.ReactNode }) {
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (cancelled || !data) return;
+        // Don't send to /survey if they haven't completed onboarding — they should see Welcome then onboarding steps first.
+        if (data.onboardingComplete === false) return;
         const hasSurvey = data.surveyAnswers != null && typeof data.surveyAnswers === "object";
         const hasBigFive =
           data.bigFiveScores != null &&

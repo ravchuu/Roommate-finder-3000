@@ -29,7 +29,7 @@ import { cn } from "@/lib/utils";
 interface RoomAvailability {
   roomSize: number;
   totalRooms: number;
-  seatsRemaining: number;
+  bedsRemaining: number;
   available: boolean;
 }
 
@@ -236,8 +236,8 @@ export function DashboardCards({
                             {opt.roomSize}-Person Room
                           </p>
                           <p className="text-sm text-muted-foreground">
-                            {opt.seatsRemaining} seats remaining · {opt.totalRooms}{" "}
-                            rooms total
+                            {opt.bedsRemaining} beds remaining · {opt.totalRooms}{" "}
+                            {opt.roomSize}-person rooms
                           </p>
                         </div>
                       </div>

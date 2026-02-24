@@ -117,7 +117,7 @@ export function StudentSidebar() {
                   )}
                 >
                   <link.icon className={cn("h-4 w-4 transition-transform", active && "scale-110")} />
-                  {link.label}
+                  <span className="flex-1 min-w-0">{link.label}</span>
                 </Link>
               </motion.div>
             );

@@ -115,21 +115,25 @@ export async function PUT(req: NextRequest) {
     data: { status: action === "accept" ? "accepted" : "declined" },
   });
 
+  let outcome: "group_formed" | "invite_sent" | "merge_requested" | null = null;
   if (action === "accept") {
-    await handleAccept(request.fromStudentId, request.toStudentId);
+    outcome = await handleAccept(request.fromStudentId, request.toStudentId);
   }
 
-  return NextResponse.json(updated);
+  return NextResponse.json({ ...updated, outcome });
 }
 
 // ---------------------------------------------------------------------------
-// Three-way branching on accept
+// Three-way branching on accept; returns outcome for frontend (group_formed, invite_sent, merge_requested, or null).
 // ---------------------------------------------------------------------------
-async function handleAccept(fromStudentId: string, toStudentId: string) {
+async function handleAccept(
+  fromStudentId: string,
+  toStudentId: string
+): Promise<"group_formed" | "invite_sent" | "merge_requested" | null> {
   const mutual = await db.roommateRequest.findFirst({
     where: { fromStudentId: toStudentId, toStudentId: fromStudentId, status: "accepted" },
   });
-  if (!mutual) return;
+  if (!mutual) return null;
 
   const [fromMembership, toMembership, fromStudent, toStudent] = await Promise.all([
     db.groupMember.findUnique({
@@ -151,7 +155,7 @@ async function handleAccept(fromStudentId: string, toStudentId: string) {
       })
     : null;
 
-  if (!fromStudent || !toStudent) return;
+  if (!fromStudent || !toStudent) return null;
   const orgId = fromStudent.organizationId;
   const fromGroup = fromMembership?.group;
   const toGroup = toMembership?.group;
@@ -161,35 +165,43 @@ async function handleAccept(fromStudentId: string, toStudentId: string) {
     a != null && b != null && a.toLowerCase() === b.toLowerCase();
 
   if (isSingleGender && !sameGender(fromStudent.gender, toStudent.gender)) {
-    return; // do not create group / invite / merge across genders
+    return null; // do not create group / invite / merge across genders
   }
 
   if (!fromGroup && !toGroup) {
     await createGroupFromPair(fromStudentId, toStudentId, orgId);
-  } else if (fromGroup && !toGroup) {
+    return "group_formed";
+  }
+  if (fromGroup && !toGroup) {
     if (isSingleGender) {
       const groupGender = fromGroup.members.length
         ? (await db.student.findUnique({ where: { id: fromGroup.members[0].studentId }, select: { gender: true } }))?.gender
         : null;
-      if (groupGender != null && toStudent.gender != null && groupGender.toLowerCase() !== toStudent.gender.toLowerCase()) return;
+      if (groupGender != null && toStudent.gender != null && groupGender.toLowerCase() !== toStudent.gender.toLowerCase()) return null;
     }
     await createJoinInvite(fromGroup.id, toStudentId, fromStudentId);
-  } else if (!fromGroup && toGroup) {
+    return "invite_sent";
+  }
+  if (!fromGroup && toGroup) {
     if (isSingleGender) {
       const groupGender = toGroup.members.length
         ? (await db.student.findUnique({ where: { id: toGroup.members[0].studentId }, select: { gender: true } }))?.gender
         : null;
-      if (groupGender != null && fromStudent.gender != null && groupGender.toLowerCase() !== fromStudent.gender.toLowerCase()) return;
+      if (groupGender != null && fromStudent.gender != null && groupGender.toLowerCase() !== fromStudent.gender.toLowerCase()) return null;
     }
     await createJoinInvite(toGroup.id, fromStudentId, toStudentId);
-  } else if (fromGroup && toGroup && fromGroup.id !== toGroup.id) {
+    return "invite_sent";
+  }
+  if (fromGroup && toGroup && fromGroup.id !== toGroup.id) {
     if (isSingleGender) {
       const [g1, g2] = await Promise.all([
         fromGroup.members.length ? db.student.findUnique({ where: { id: fromGroup.members[0].studentId }, select: { gender: true } }) : null,
         toGroup.members.length ? db.student.findUnique({ where: { id: toGroup.members[0].studentId }, select: { gender: true } }) : null,
       ]);
-      if (g1?.gender == null || g2?.gender == null || g1.gender.toLowerCase() !== g2.gender.toLowerCase()) return;
+      if (g1?.gender == null || g2?.gender == null || g1.gender.toLowerCase() !== g2.gender.toLowerCase()) return null;
     }
     await createMergeRequest(fromGroup.id, toGroup.id, fromStudentId);
+    return "merge_requested";
   }
+  return null;
 }

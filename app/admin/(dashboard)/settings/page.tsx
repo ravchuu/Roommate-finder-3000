@@ -5,7 +5,7 @@ import { Loader2, Save, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function SettingsPage() {
   const [name, setName] = useState("");
@@ -57,14 +57,17 @@ export default function SettingsPage() {
 
   return (
     <div className="p-8">
-      <h1 className="text-3xl font-bold mb-2">Settings</h1>
+      <h1 className="text-3xl font-bold mb-2">Standards</h1>
       <p className="text-muted-foreground mb-8">
-        Configure your organization settings
+        Set your organization&apos;s rooming process: deadline, housing type, and display name.
       </p>
 
       <Card className="max-w-xl">
         <CardHeader>
-          <CardTitle>Organization Settings</CardTitle>
+          <CardTitle>Organization & rooming standards</CardTitle>
+          <CardDescription>
+            Deadline and housing type apply to all students in your org. Room sizes and counts are set under Room config.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSave} className="space-y-4">
@@ -98,8 +101,8 @@ export default function SettingsPage() {
               </p>
             </div>
             <div className="space-y-2">
-              <Label>Housing type</Label>
-              <div className="flex gap-4">
+              <Label>Housing type (rooms)</Label>
+              <div className="flex flex-wrap gap-6">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="radio"
@@ -109,7 +112,7 @@ export default function SettingsPage() {
                     onChange={() => setHousingType("coed")}
                     className="rounded-full border-primary"
                   />
-                  <span>Co-ed</span>
+                  <span><strong>Co-ed</strong> — mixed gender (any students can room together)</span>
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
@@ -120,11 +123,11 @@ export default function SettingsPage() {
                     onChange={() => setHousingType("single_gender")}
                     className="rounded-full border-primary"
                   />
-                  <span>Single gender</span>
+                  <span><strong>Single gender</strong> — same gender only (students only see same-gender roommates)</span>
                 </label>
               </div>
               <p className="text-xs text-muted-foreground">
-                Single gender: students only see and match with same-gender roommates
+                This applies to all rooms. Change here to allow or restrict mixed-gender rooming.
               </p>
             </div>
             <div className="flex items-center gap-3">

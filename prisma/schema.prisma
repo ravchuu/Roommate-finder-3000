@@ -21,6 +21,20 @@ model Organization {
   students    Student[]
   roomConfigs RoomConfig[]
   groups      Group[]
+  draft       OrgDraft?
+}
+
+model OrgDraft {
+  id                   String   @id @default(cuid())
+  organizationId       String   @unique
+  pendingStudentAdds  String   @default("[]") // JSON array of { name, email, age?, gender? }
+  roomConfigs         String?  // JSON array of { roomSize, totalRooms }; null = use live
+  settings            String?  // JSON { name?, deadline?, housingType? }; null = use live
+  updatedAt           DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
 }
 
 model Student {

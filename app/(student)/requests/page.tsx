@@ -9,13 +9,10 @@ import {
   CheckCircle2,
   XCircle,
   Clock,
-  ArrowRight,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Separator } from "@/components/ui/separator";
 
 interface StudentInfo {
   id: string;
@@ -48,9 +45,7 @@ const STATUS_CONFIG: Record<
 
 export default function RequestsPage() {
   const [sent, setSent] = useState<Request[]>([]);
-  const [received, setReceived] = useState<Request[]>([]);
   const [loading, setLoading] = useState(true);
-  const [acting, setActing] = useState<string | null>(null);
 
   useEffect(() => {
     fetchRequests();
@@ -60,19 +55,7 @@ export default function RequestsPage() {
     const res = await fetch("/api/requests");
     const data = await res.json();
     setSent(data.sent || []);
-    setReceived(data.received || []);
     setLoading(false);
-  }
-
-  async function handleAction(requestId: string, action: "accept" | "decline") {
-    setActing(requestId);
-    await fetch("/api/requests", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ requestId, action }),
-    });
-    await fetchRequests();
-    setActing(null);
   }
 
   function timeRemaining(expiresAt: string): string {
@@ -91,8 +74,6 @@ export default function RequestsPage() {
     );
   }
 
-  const pendingReceived = received.filter((r) => r.status === "pending");
-
   return (
     <div>
       <motion.div
@@ -105,74 +86,10 @@ export default function RequestsPage() {
         <h1 className="text-3xl font-bold">Roommate Requests</h1>
       </motion.div>
 
-      {pendingReceived.length > 0 && (
-        <div className="mb-8">
-          <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-            <ArrowRight className="h-5 w-5 text-primary" />
-            Incoming ({pendingReceived.length})
-          </h2>
-          <div className="space-y-3">
-            {pendingReceived.map((req, i) => (
-              <motion.div
-                key={req.id}
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, delay: i * 0.06 }}
-              >
-              <Card className="border-primary/20 hover:shadow-md transition-shadow">
-                <CardContent className="pt-6 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <Avatar>
-                      <AvatarImage src={req.fromStudent?.photo || undefined} />
-                      <AvatarFallback>
-                        {req.fromStudent?.name
-                          ?.split(" ")
-                          .map((n) => n[0])
-                          .join("") || "?"}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="font-medium">{req.fromStudent?.name}</p>
-                      <p className="text-sm text-muted-foreground">
-                        Wants to be your roommate &middot;{" "}
-                        {timeRemaining(req.expiresAt)}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button
-                      size="sm"
-                      onClick={() => handleAction(req.id, "accept")}
-                      disabled={acting === req.id}
-                    >
-                      {acting === req.id ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        "Accept"
-                      )}
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleAction(req.id, "decline")}
-                      disabled={acting === req.id}
-                    >
-                      Decline
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      )}
-
       <motion.div
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, delay: 0.15 }}
-        className="grid md:grid-cols-2 gap-8"
+        transition={{ duration: 0.4, delay: 0.05 }}
       >
         <Card>
           <CardHeader>
@@ -216,57 +133,6 @@ export default function RequestsPage() {
                               {timeRemaining(req.expiresAt)}
                             </p>
                           )}
-                        </div>
-                      </div>
-                      <Badge variant={cfg.variant} className="flex items-center gap-1">
-                        {cfg.icon}
-                        {cfg.label}
-                      </Badge>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <Mail className="h-4 w-4" />
-              Received Requests
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {received.length === 0 ? (
-              <p className="text-muted-foreground text-sm">
-                No received requests yet.
-              </p>
-            ) : (
-              <div className="space-y-3">
-                {received.map((req) => {
-                  const cfg = STATUS_CONFIG[req.status] || STATUS_CONFIG.pending;
-                  return (
-                    <div
-                      key={req.id}
-                      className="flex items-center justify-between"
-                    >
-                      <div className="flex items-center gap-3">
-                        <Avatar className="h-8 w-8">
-                          <AvatarImage
-                            src={req.fromStudent?.photo || undefined}
-                          />
-                          <AvatarFallback className="text-xs">
-                            {req.fromStudent?.name
-                              ?.split(" ")
-                              .map((n) => n[0])
-                              .join("") || "?"}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <p className="text-sm font-medium">
-                            {req.fromStudent?.name}
-                          </p>
                         </div>
                       </div>
                       <Badge variant={cfg.variant} className="flex items-center gap-1">
